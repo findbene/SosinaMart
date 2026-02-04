@@ -1,7 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
+import { Language, FunctionCall, GeminiCartItem } from '@/types/chat';
+import { useCart } from '@/context/CartContext';
+import { PRODUCTS } from '@/lib/data';
 
 interface ChatMessage {
   id: string;
@@ -9,7 +12,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   suggestedProducts?: Product[];
-  suggestedActions?: string[];
+  functionCalls?: FunctionCall[];
 }
 
 interface ChatContextType {
@@ -17,23 +20,50 @@ interface ChatContextType {
   sessionId: string | null;
   isOpen: boolean;
   isTyping: boolean;
+  language: Language;
+  isVoiceActive: boolean;
+  isVoiceSupported: boolean;
   setIsOpen: (open: boolean) => void;
+  setLanguage: (language: Language) => void;
   sendMessage: (message: string) => Promise<void>;
   clearSession: () => void;
+  toggleVoice: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 const CHAT_SESSION_KEY = 'sosina-chat-session';
+const CHAT_LANGUAGE_KEY = 'sosina-chat-language';
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [language, setLanguageState] = useState<Language>('en');
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isVoiceSupported, setIsVoiceSupported] = useState(false);
 
-  // Load session from storage on mount
+  // Get cart context for function call handling
+  const cartContext = useCart();
+
+  // Check voice support on mount
   useEffect(() => {
+    const hasAudioSupport = typeof window !== 'undefined' &&
+      'AudioContext' in window &&
+      navigator.mediaDevices?.getUserMedia;
+    setIsVoiceSupported(!!hasAudioSupport);
+  }, []);
+
+  // Load session and language from storage on mount
+  useEffect(() => {
+    // Load language preference
+    const savedLanguage = localStorage.getItem(CHAT_LANGUAGE_KEY) as Language;
+    if (savedLanguage && ['en', 'am', 'ti', 'es'].includes(savedLanguage)) {
+      setLanguageState(savedLanguage);
+    }
+
+    // Load chat session
     const savedSession = localStorage.getItem(CHAT_SESSION_KEY);
     if (savedSession) {
       try {
@@ -62,6 +92,54 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [sessionId, messages]);
 
+  // Save language preference
+  const setLanguage = useCallback((newLanguage: Language) => {
+    setLanguageState(newLanguage);
+    localStorage.setItem(CHAT_LANGUAGE_KEY, newLanguage);
+  }, []);
+
+  // Handle function calls from Gemini
+  const handleFunctionCalls = useCallback((functionCalls: FunctionCall[]) => {
+    for (const call of functionCalls) {
+      if (call.name === 'add_to_cart') {
+        const args = call.args as { items?: GeminiCartItem[] };
+        if (args.items && Array.isArray(args.items)) {
+          for (const item of args.items) {
+            // Find the product by ID or name
+            let product = PRODUCTS.find(p => p.id === item.productId);
+            if (!product && item.productName) {
+              product = PRODUCTS.find(p =>
+                p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
+                item.productName.toLowerCase().includes(p.name.toLowerCase())
+              );
+            }
+
+            if (product) {
+              // Add to cart the specified quantity (default 1)
+              const qty = item.quantity || 1;
+              for (let i = 0; i < qty; i++) {
+                cartContext.addToCart(product);
+              }
+            }
+          }
+        }
+      } else if (call.name === 'start_checkout') {
+        // Trigger checkout - for now just open the cart
+        // The actual checkout modal can be opened through events
+        const checkoutEvent = new CustomEvent('openCheckout');
+        window.dispatchEvent(checkoutEvent);
+      }
+    }
+  }, [cartContext]);
+
+  // Resolve product IDs to products
+  const resolveProducts = useCallback((productIds?: string[]): Product[] => {
+    if (!productIds || productIds.length === 0) return [];
+    return productIds
+      .map(id => PRODUCTS.find(p => p.id === id))
+      .filter((p): p is Product => p !== undefined);
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
 
@@ -83,6 +161,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           message: content,
           sessionId,
+          language,
         }),
       });
 
@@ -94,14 +173,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setSessionId(data.data.sessionId);
         }
 
+        // Handle function calls if present
+        if (data.data.functionCalls && data.data.functionCalls.length > 0) {
+          handleFunctionCalls(data.data.functionCalls);
+        }
+
+        // Resolve suggested products
+        const suggestedProducts = resolveProducts(data.data.suggestedProducts);
+
         // Add assistant message
         const assistantMessage: ChatMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
           content: data.data.reply,
           timestamp: new Date(),
-          suggestedProducts: data.data.suggestedProducts,
-          suggestedActions: data.data.suggestedActions,
+          suggestedProducts,
+          functionCalls: data.data.functionCalls,
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
@@ -110,7 +197,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const errorMessage: ChatMessage = {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: 'I apologize, but I encountered an issue. Please try again.',
+          content: language === 'en'
+            ? 'I apologize, but I encountered an issue. Please try again.'
+            : 'ይቅርታ፣ ችግር አጋጥሞኛል። እባክዎ እንደገና ይሞክሩ።',
           timestamp: new Date(),
         };
 
@@ -121,7 +210,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'I apologize, but I encountered a connection issue. Please try again.',
+        content: language === 'en'
+          ? 'I apologize, but I encountered a connection issue. Please try again.'
+          : 'ይቅርታ፣ የግንኙነት ችግር አጋጥሞኛል።',
         timestamp: new Date(),
       };
 
@@ -129,13 +220,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsTyping(false);
     }
-  }, [sessionId]);
+  }, [sessionId, language, handleFunctionCalls, resolveProducts]);
 
   const clearSession = useCallback(() => {
     setMessages([]);
     setSessionId(null);
     localStorage.removeItem(CHAT_SESSION_KEY);
   }, []);
+
+  const toggleVoice = useCallback(() => {
+    if (!isVoiceSupported) return;
+    setIsVoiceActive((prev) => !prev);
+    // Voice implementation will be handled in ChatWidget
+  }, [isVoiceSupported]);
 
   return (
     <ChatContext.Provider
@@ -144,9 +241,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sessionId,
         isOpen,
         isTyping,
+        language,
+        isVoiceActive,
+        isVoiceSupported,
         setIsOpen,
+        setLanguage,
         sendMessage,
         clearSession,
+        toggleVoice,
       }}
     >
       {children}

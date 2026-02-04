@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { chat, ChatMessage } from '@/lib/ai';
+import { chatWithHistory, GeminiResponse } from '@/lib/gemini';
+import { Language } from '@/types/chat';
 import {
   createApiResponse,
   createApiError,
@@ -9,17 +10,22 @@ import {
 } from '@/lib/api-utils';
 import { sendChatMessageSchema, validate, formatZodErrors } from '@/lib/validations';
 
-// Generate UUID (using crypto since uuid package might not be installed)
+// Generate UUID
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  // Fallback
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+// Chat message interface
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 // POST /api/ai/chat - Send a chat message
@@ -39,6 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { message, sessionId, context } = validation.data;
+    const language = ((body as Record<string, unknown>).language as Language) || 'en';
 
     // Get or create session
     let currentSessionId = sessionId;
@@ -59,20 +66,18 @@ export async function POST(request: NextRequest) {
             .select('role, content')
             .eq('session_id', sessionId)
             .order('created_at', { ascending: true })
-            .limit(20); // Keep last 20 messages for context
+            .limit(20);
 
           previousMessages = (messages || []).map(m => ({
             role: m.role as 'user' | 'assistant',
             content: m.content,
           }));
         } else {
-          // Session not found or closed, create new one
           currentSessionId = undefined;
         }
       }
 
       if (!currentSessionId) {
-        // Create new session
         currentSessionId = generateUUID();
         await supabase.from('chat_sessions').insert({
           id: currentSessionId,
@@ -82,7 +87,6 @@ export async function POST(request: NextRequest) {
         });
       }
     } else {
-      // No Supabase, use provided sessionId or generate new one
       currentSessionId = sessionId || generateUUID();
     }
 
@@ -92,8 +96,8 @@ export async function POST(request: NextRequest) {
       { role: 'user', content: message },
     ];
 
-    // Get AI response
-    const response = await chat(messages, context);
+    // Get Gemini response
+    const response: GeminiResponse = await chatWithHistory(messages, language);
 
     // Save messages to database
     if (supabase && currentSessionId) {
@@ -111,8 +115,8 @@ export async function POST(request: NextRequest) {
         role: 'assistant',
         content: response.reply,
         metadata: {
-          suggestedProducts: response.suggestedProducts?.map(p => p.id),
-          suggestedActions: response.suggestedActions,
+          suggestedProducts: response.suggestedProducts,
+          functionCalls: response.functionCalls,
         },
         created_at: new Date().toISOString(),
       });
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
       reply: response.reply,
       sessionId: currentSessionId,
       suggestedProducts: response.suggestedProducts,
-      suggestedActions: response.suggestedActions,
+      functionCalls: response.functionCalls,
     });
   } catch (error) {
     return handleApiError(error);
@@ -166,7 +170,7 @@ export async function GET(request: NextRequest) {
     // Fetch messages
     const { data: messages } = await supabase
       .from('chat_messages')
-      .select('role, content, created_at')
+      .select('role, content, metadata, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
 

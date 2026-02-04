@@ -2,7 +2,7 @@
 
 ## Overview
 
-Sosina Mart is a Next.js 14 e-commerce application for an Ethiopian store selling traditional clothes, food items, coffee, and cultural products. The application includes a full admin dashboard, CRM system, AI-powered customer support, and authentication.
+Sosina Mart is a Next.js 14 e-commerce application for an Ethiopian store selling traditional clothes, food items, coffee, and cultural products. The application includes a full admin dashboard, CRM system, AI-powered customer support (Kidist - the shopping assistant), and authentication.
 
 **Live URL:** https://sosina-mart.vercel.app
 
@@ -16,6 +16,7 @@ Sosina Mart is a Next.js 14 e-commerce application for an Ethiopian store sellin
 | UI Components | Radix UI, Lucide Icons |
 | Authentication | NextAuth.js (Credentials Provider) |
 | Database | Supabase (PostgreSQL) |
+| AI | Google Gemini 2.0 Flash |
 | Validation | Zod |
 | Testing | Jest, React Testing Library, Playwright |
 | Deployment | Vercel |
@@ -43,16 +44,19 @@ src/
 │   └── providers.tsx        # Context providers wrapper
 ├── components/
 │   ├── ai/                  # AI chat widget components
+│   │   ├── ChatWidget.tsx   # Main chat UI with Kidist persona
+│   │   └── LanguageSelector.tsx # Multilingual dropdown
 │   ├── checkout/            # Checkout modal
 │   ├── products/            # Product cards, grid
 │   └── ui/                  # Reusable UI components
 ├── context/
 │   ├── AuthContext.tsx      # Authentication state
 │   ├── CartContext.tsx      # Shopping cart state
-│   ├── ChatContext.tsx      # AI chat state
+│   ├── ChatContext.tsx      # AI chat state (language, function calls)
 │   └── ToastContext.tsx     # Toast notifications
 ├── lib/
-│   ├── ai.ts                # AI service integration
+│   ├── gemini.ts            # Gemini AI service (Kidist persona)
+│   ├── rag.ts               # RAG service for knowledge retrieval
 │   ├── api-error.ts         # API error handling
 │   ├── api-utils.ts         # API utilities & middleware
 │   ├── auth.ts              # NextAuth configuration
@@ -62,7 +66,9 @@ src/
 │   ├── utils.ts             # Utility functions
 │   └── validations.ts       # Zod schemas
 ├── middleware.ts            # Route protection
-└── types/                   # TypeScript types
+└── types/
+    ├── index.ts             # Main TypeScript types
+    └── chat.ts              # Chat-specific types (Language, FunctionCall)
 ```
 
 ## Key Features
@@ -92,11 +98,14 @@ src/
 - Protected routes via middleware
 - Role-based access (customer/admin)
 
-### 5. AI Chat Widget
-- Floating chat button (bottom-right)
-- Product recommendations
-- Customer support assistance
-- Context-aware responses
+### 5. AI Chat Widget (Kidist)
+- **Kidist Persona**: Friendly Ethiopian shopping concierge
+- **Multilingual Support**: English, Amharic, Tigrigna, Spanish
+- **Ethiopian Flag Styling**: Green/Yellow/Red gradient button
+- **Cart Integration**: AI can add items to cart via function calls
+- **RAG Knowledge Base**: Context-aware responses using product catalog
+- **Cultural Knowledge**: Information about Ethiopian traditions and products
+- **Fallback Mode**: Works without API key with basic responses
 
 ## Environment Variables
 
@@ -111,8 +120,8 @@ NEXTAUTH_URL=https://sosina-mart.vercel.app
 NEXT_PUBLIC_SUPABASE_URL=<supabase-project-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 
-# AI (optional - for chat features)
-OPENAI_API_KEY=<openai-api-key>
+# AI (optional - for Kidist chat features)
+GEMINI_API_KEY=<google-gemini-api-key>
 ```
 
 ## Database Schema
@@ -125,6 +134,8 @@ Located in `supabase/migrations/001_initial_schema.sql`:
 - `order_status_history` - Status change log
 - `customer_interactions` - CRM interaction log
 - `customer_segments` - Customer segmentation
+- `chat_sessions` - AI chat sessions
+- `chat_messages` - Chat message history
 
 ## API Routes
 
@@ -138,8 +149,31 @@ Located in `supabase/migrations/001_initial_schema.sql`:
 | POST | `/api/customers/[id]/interactions` | Log interaction |
 | GET | `/api/products` | List products (with filters) |
 | GET | `/api/products/search` | Search products |
-| POST | `/api/ai/chat` | AI chat endpoint |
-| POST | `/api/ai/recommendations` | Product recommendations |
+| GET/POST | `/api/ai/chat` | AI chat endpoint (Gemini) |
+| GET/POST | `/api/ai/recommendations` | Product recommendations |
+
+## AI Architecture
+
+### Gemini Integration (`src/lib/gemini.ts`)
+- Uses `@google/genai` SDK with Gemini 2.0 Flash model
+- Kidist persona system prompt with multilingual support
+- Action blocks for cart operations (parsed from response)
+- Fallback responses when API is unavailable
+
+### RAG Service (`src/lib/rag.ts`)
+- Builds knowledge base from `PRODUCTS` and `STORE_INFO`
+- Cultural information about Ethiopian traditions
+- Keyword-based search with relevance scoring
+- `buildKnowledgeContext()` provides context to AI
+
+### Function Calls
+The AI can trigger cart operations via action blocks:
+```json
+{"action":"add_to_cart","items":[{"productId":"f1","productName":"Berbere","quantity":1,"price":12.99}]}
+{"action":"start_checkout"}
+```
+
+These are handled in `ChatContext.tsx` which integrates with `CartContext`.
 
 ## Testing
 
@@ -155,7 +189,7 @@ npx playwright test
 ```
 
 **Test Coverage:**
-- 199 tests passing
+- 180 tests passing
 - Unit tests: utils, validations, api-utils
 - Component tests: Button, Badge, Card, Skeleton, Tabs, ProductCard
 - Integration tests: Cart operations, Checkout flow
@@ -183,7 +217,10 @@ The app auto-deploys to Vercel on push to `main` branch.
 
 1. Push changes to GitHub
 2. Vercel automatically builds and deploys
-3. Configure environment variables in Vercel dashboard
+3. Configure environment variables in Vercel dashboard:
+   - `GEMINI_API_KEY` for AI chat features
+   - `NEXTAUTH_SECRET` for authentication
+   - Supabase credentials for database
 
 ## Notes for Claude
 
@@ -191,4 +228,7 @@ The app auto-deploys to Vercel on push to `main` branch.
 - **Without Supabase**, the app runs in "mock mode" with limited functionality
 - **Admin routes** require `role: 'admin'` in session
 - **Toast notifications** use custom context, not external library
-- **AI chat** gracefully degrades without API key configured
+- **AI chat (Kidist)** gracefully degrades without `GEMINI_API_KEY`
+- **Languages supported**: English (en), Amharic (am), Tigrigna (ti), Spanish (es)
+- **Cart integration**: AI function calls are handled in `ChatContext.tsx`
+- **RAG knowledge base** is built from products and store info at runtime
