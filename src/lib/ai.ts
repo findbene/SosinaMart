@@ -125,6 +125,10 @@ export async function chat(
   }
 
   try {
+    console.log('[AI Chat] Starting OpenAI request...');
+    console.log('[AI Chat] API Key prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) + '...');
+    console.log('[AI Chat] Messages count:', messages.length);
+
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       max_tokens: 1024,
@@ -137,7 +141,19 @@ export async function chat(
       ],
     });
 
-    const reply = response.choices[0]?.message?.content || 'I apologize, but I encountered an issue. Please try again.';
+    console.log('[AI Chat] Response received');
+    console.log('[AI Chat] Choices count:', response.choices?.length);
+    console.log('[AI Chat] Finish reason:', response.choices?.[0]?.finish_reason);
+
+    const reply = response.choices[0]?.message?.content;
+
+    if (!reply) {
+      console.error('[AI Chat] Empty reply from OpenAI');
+      console.error('[AI Chat] Full response:', JSON.stringify(response, null, 2));
+      return getFallbackResponse(messages[messages.length - 1]?.content || '');
+    }
+
+    console.log('[AI Chat] Reply length:', reply.length);
 
     // Extract product suggestions from the response
     const suggestedProducts = extractProductSuggestions(reply);
@@ -147,8 +163,15 @@ export async function chat(
       suggestedProducts,
       suggestedActions: getSuggestedActions(reply),
     };
-  } catch (error) {
-    console.error('AI chat error:', error);
+  } catch (error: any) {
+    console.error('[AI Chat] Error occurred:', error?.message || error);
+    console.error('[AI Chat] Error name:', error?.name);
+    console.error('[AI Chat] Error status:', error?.status);
+    console.error('[AI Chat] OpenAI configured:', !!openai);
+    console.error('[AI Chat] API Key exists:', !!process.env.OPENAI_API_KEY);
+    if (error?.response) {
+      console.error('[AI Chat] Error response:', JSON.stringify(error.response, null, 2));
+    }
     return getFallbackResponse(messages[messages.length - 1]?.content || '');
   }
 }
