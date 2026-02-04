@@ -1,10 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { Product } from '@/types';
 import { PRODUCTS, STORE_INFO } from '@/lib/data';
 
-// Initialize Anthropic client
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Initialize OpenAI client
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 // System prompt for the AI chat assistant
@@ -118,25 +118,26 @@ export async function chat(
     systemPrompt += `\n\nCustomer is inquiring about order: ${context.orderNumber}`;
   }
 
-  // Check if Anthropic is configured
-  if (!anthropic) {
+  // Check if OpenAI is configured
+  if (!openai) {
     // Return a helpful fallback response
     return getFallbackResponse(messages[messages.length - 1]?.content || '');
   }
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
       max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      })),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      ],
     });
 
-    const textContent = response.content.find(block => block.type === 'text');
-    const reply = textContent?.type === 'text' ? textContent.text : 'I apologize, but I encountered an issue. Please try again.';
+    const reply = response.choices[0]?.message?.content || 'I apologize, but I encountered an issue. Please try again.';
 
     // Extract product suggestions from the response
     const suggestedProducts = extractProductSuggestions(reply);
