@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "Sosina Mart - Ethiopian Store in Atlanta",
@@ -41,7 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased">
-        <CartProvider>{children}</CartProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

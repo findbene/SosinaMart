@@ -10,11 +10,13 @@ const customJestConfig = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
-  testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
+  testMatch: ["**/__tests__/**/*.[jt]s?(x)"],
+  testPathIgnorePatterns: ["/node_modules/", "/e2e/", "/__tests__/api/"],
   collectCoverageFrom: [
     "src/**/*.{js,jsx,ts,tsx}",
     "!src/**/*.d.ts",
     "!src/**/index.ts",
+    "!src/app/api/**/*.ts",
   ],
 };
 

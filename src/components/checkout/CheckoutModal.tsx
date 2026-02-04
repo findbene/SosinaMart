@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useToast } from "@/context/ToastContext";
 import { db } from "@/lib/supabase";
 import { cn, formatPrice, generateOrderNumber, isValidEmail, isValidPhone } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ interface CheckoutModalProps {
 
 export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutModalProps) {
   const { items, cartTotal, clearCart } = useCart();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -87,7 +89,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
       });
     } catch (error) {
       console.error("Error submitting order:", error);
-      alert("Failed to submit order. Please try again.");
+      toastError("Failed to submit order. Please try again.", "Order Error");
     } finally {
       setIsSubmitting(false);
     }
