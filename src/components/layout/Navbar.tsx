@@ -1,23 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Phone, Menu, X } from "lucide-react";
+import { ShoppingCart, Phone, Menu, X, User, LogOut, Settings, Package, LayoutDashboard, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { NAV_LINKS, STORE_INFO } from "@/lib/data";
 import { cn, formatPhoneForLink, scrollToElement } from "@/lib/utils";
 import CartSidebar from "@/components/layout/CartSidebar";
 import AllProductsModal from "@/components/products/AllProductsModal";
+import { useSession, signOut } from "next-auth/react";
 
 export default function Navbar() {
   const { cartCount } = useCart();
+  const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAllProductsOpen, setIsAllProductsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -113,6 +130,87 @@ export default function Navbar() {
                 )}
               </Button>
 
+              {/* User Menu */}
+              <div className="relative" ref={userMenuRef}>
+                {session ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="text-white hover:text-accent-gold hover:bg-white/10 flex items-center gap-1"
+                      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    >
+                      <User className="w-5 h-5" />
+                      <span className="hidden sm:inline text-sm">{session.user?.name?.split(' ')[0] || 'Account'}</span>
+                      <ChevronDown className={cn("w-4 h-4 transition-transform", isUserMenuOpen && "rotate-180")} />
+                    </Button>
+
+                    {/* Dropdown Menu */}
+                    {isUserMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                        {isAdmin && (
+                          <>
+                            <Link
+                              href="/admin"
+                              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <LayoutDashboard className="w-4 h-4" />
+                              Admin Dashboard
+                            </Link>
+                            <div className="border-t my-1" />
+                          </>
+                        )}
+                        <Link
+                          href="/account"
+                          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <User className="w-4 h-4" />
+                          My Account
+                        </Link>
+                        <Link
+                          href="/account/orders"
+                          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <Package className="w-4 h-4" />
+                          My Orders
+                        </Link>
+                        <Link
+                          href="/account/settings"
+                          className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <Settings className="w-4 h-4" />
+                          Settings
+                        </Link>
+                        <div className="border-t my-1" />
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            signOut({ callbackUrl: "/" });
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-gray-100 w-full"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      className="text-white hover:text-accent-gold hover:bg-white/10"
+                    >
+                      <User className="w-5 h-5 mr-1" />
+                      <span className="hidden sm:inline">Login</span>
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
               {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
@@ -134,7 +232,7 @@ export default function Navbar() {
         <div
           className={cn(
             "md:hidden transition-all duration-300 overflow-hidden",
-            isMobileMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+            isMobileMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
           )}
         >
           <div className="px-4 py-4 space-y-2 bg-primary-dark">
@@ -147,6 +245,62 @@ export default function Navbar() {
                 {link.label}
               </button>
             ))}
+
+            {/* Mobile User Links */}
+            {session ? (
+              <>
+                <div className="border-t border-white/20 my-2" />
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-2 text-accent-gold py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    Admin Dashboard
+                  </Link>
+                )}
+                <Link
+                  href="/account"
+                  className="flex items-center gap-2 text-white py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <User className="w-5 h-5" />
+                  My Account
+                </Link>
+                <Link
+                  href="/account/orders"
+                  className="flex items-center gap-2 text-white py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Package className="w-5 h-5" />
+                  My Orders
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    signOut({ callbackUrl: "/" });
+                  }}
+                  className="flex items-center gap-2 text-red-400 py-3 px-4 rounded-lg hover:bg-white/10 transition-colors w-full"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="border-t border-white/20 my-2" />
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 text-white py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <User className="w-5 h-5" />
+                  Login / Register
+                </Link>
+              </>
+            )}
+
             <Link
               href={formatPhoneForLink(STORE_INFO.phone)}
               className="block w-full text-center bg-accent-gold text-primary-dark py-3 px-4 rounded-lg font-semibold"
