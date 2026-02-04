@@ -79,25 +79,35 @@ const tools: { functionDeclarations: FunctionDeclaration[] }[] = [
 export class GeminiService {
   private getApiKey(): string | null {
     // Client-side: use NEXT_PUBLIC_ prefix
-    if (typeof window !== 'undefined') {
-      return process.env.NEXT_PUBLIC_GEMINI_API_KEY || null;
-    }
-    return process.env.GEMINI_API_KEY || null;
+    const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || null;
+    console.log('[GeminiService] API Key available:', !!key);
+    return key;
   }
 
   async chat(message: string, history: any[] = [], ragContext?: string, language?: string) {
     const apiKey = this.getApiKey();
+
     if (!apiKey) {
+      console.error('[GeminiService] No API key configured');
       return {
-        text: "I apologize, but I'm not fully configured yet. Please contact the store directly at 470-359-7924.",
+        text: "I apologize, but I'm not fully configured yet. Please make sure NEXT_PUBLIC_GEMINI_API_KEY is set. Contact the store directly at 470-359-7924.",
         functionCalls: null
       };
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const fullPrompt = `${ragContext ? `Context:\n${ragContext}\n\n` : ''}User (speaking ${language || 'English'}): ${message}`;
-
     try {
+      console.log('[GeminiService] Initializing Gemini with key:', apiKey.substring(0, 10) + '...');
+      const ai = new GoogleGenAI({ apiKey });
+
+      // Build the prompt with language instruction
+      const languageInstruction = language && language !== 'English'
+        ? `IMPORTANT: The user is speaking ${language}. You MUST respond in ${language}.`
+        : '';
+
+      const fullPrompt = `${languageInstruction}\n${ragContext ? `Context:\n${ragContext}\n\n` : ''}User: ${message}`;
+
+      console.log('[GeminiService] Sending request to Gemini...');
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash',
         contents: [...history, { role: 'user', parts: [{ text: fullPrompt }] }],
@@ -107,14 +117,40 @@ export class GeminiService {
         },
       });
 
+      console.log('[GeminiService] Response received:', {
+        hasText: !!response.text,
+        hasFunctionCalls: !!response.functionCalls
+      });
+
       return {
-        text: response.text,
+        text: response.text || "I understand. How can I help you further?",
         functionCalls: response.functionCalls
       };
-    } catch (error) {
-      console.error('Gemini chat error:', error);
+    } catch (error: any) {
+      console.error('[GeminiService] Chat error:', error);
+      console.error('[GeminiService] Error details:', {
+        message: error?.message,
+        status: error?.status,
+        statusText: error?.statusText
+      });
+
+      // Provide more specific error messages
+      if (error?.message?.includes('API key')) {
+        return {
+          text: "There's an issue with the API key configuration. Please check that NEXT_PUBLIC_GEMINI_API_KEY is correctly set.",
+          functionCalls: null
+        };
+      }
+
+      if (error?.status === 429) {
+        return {
+          text: "I'm receiving too many requests right now. Please wait a moment and try again.",
+          functionCalls: null
+        };
+      }
+
       return {
-        text: "I apologize, but I encountered an issue. Please try again or contact the store directly.",
+        text: "I apologize, but I encountered an issue. Please try again or contact the store directly at 470-359-7924.",
         functionCalls: null
       };
     }
@@ -127,12 +163,14 @@ export class GeminiService {
     onerror?: (error: any) => void;
   }) {
     const apiKey = this.getApiKey();
+
     if (!apiKey) {
-      console.error('No API key available for voice');
-      callbacks.onerror?.({ message: 'No API key configured' });
+      console.error('[GeminiService] No API key available for voice');
+      callbacks.onerror?.({ message: 'No API key configured. Please set NEXT_PUBLIC_GEMINI_API_KEY.' });
       return Promise.reject(new Error('No API key configured'));
     }
 
+    console.log('[GeminiService] Connecting voice session...');
     const ai = new GoogleGenAI({ apiKey });
 
     // Build callbacks with required properties

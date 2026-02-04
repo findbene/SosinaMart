@@ -7,6 +7,7 @@ import { searchKnowledge } from '@/lib/rag';
 import LanguageSelector from './LanguageSelector';
 import { useCart } from '@/context/CartContext';
 import { PRODUCTS } from '@/lib/data';
+import { LANGUAGE_LABELS } from '@/lib/constants';
 
 const KIDIST_AVATAR = "https://images.unsplash.com/photo-1523824921871-d6f1a15151f1?auto=format&fit=crop&q=80&w=400&h=400";
 
@@ -32,10 +33,23 @@ const ChatWidget: React.FC = () => {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Check if API key is configured
+  const apiKeyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [state.messages, state.isProcessing, state.view]);
+
+  // Log API key status on mount (for debugging)
+  useEffect(() => {
+    console.log('[ChatWidget] API Key configured:', apiKeyConfigured);
+    console.log('[ChatWidget] Environment check:', {
+      hasNextPublicKey: !!process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      keyPrefix: process.env.NEXT_PUBLIC_GEMINI_API_KEY?.substring(0, 10) + '...'
+    });
+  }, [apiKeyConfigured]);
 
   const handleToolCalls = (calls: any[]) => {
     calls.forEach(call => {
@@ -70,43 +84,95 @@ const ChatWidget: React.FC = () => {
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
+
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
     setState(prev => ({ ...prev, messages: [...prev.messages, userMsg], isProcessing: true }));
     setInput('');
 
+    // Get the language name for the prompt
+    const languageName = LANGUAGE_LABELS[state.currentLanguage] || 'English';
+
     try {
+      console.log('[ChatWidget] Sending message:', text, 'Language:', languageName);
       const ragContext = await searchKnowledge(text);
-      const history = state.messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
-      const { text: response, functionCalls } = await gemini.chat(text, history, ragContext, state.currentLanguage);
+      console.log('[ChatWidget] RAG context found:', ragContext ? 'Yes' : 'No');
+
+      const history = state.messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+
+      const { text: response, functionCalls } = await gemini.chat(text, history, ragContext, languageName);
+      console.log('[ChatWidget] Response received:', response?.substring(0, 100) + '...');
+      console.log('[ChatWidget] Function calls:', functionCalls);
+
       if (functionCalls) handleToolCalls(functionCalls);
-      const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: response || "Understood!", timestamp: new Date() };
+
+      const assistantMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response || "Understood!",
+        timestamp: new Date()
+      };
       setState(prev => ({ ...prev, messages: [...prev.messages, assistantMsg], isProcessing: false }));
     } catch (err) {
-      console.error(err);
-      const errorMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: "I apologize, but I encountered an issue. Please try again or contact the store directly at 470-359-7924.", timestamp: new Date() };
+      console.error('[ChatWidget] Error:', err);
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: apiKeyConfigured
+          ? "I apologize, but I encountered an issue. Please try again."
+          : "I'm not fully configured yet. Please make sure NEXT_PUBLIC_GEMINI_API_KEY is set in the environment variables.",
+        timestamp: new Date()
+      };
       setState(prev => ({ ...prev, messages: [...prev.messages, errorMsg], isProcessing: false }));
     }
   };
 
   const startVoiceSession = async () => {
+    if (!apiKeyConfigured) {
+      const errorMsg: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: "Voice chat is not available. Please configure NEXT_PUBLIC_GEMINI_API_KEY.",
+        timestamp: new Date()
+      };
+      setState(prev => ({ ...prev, messages: [...prev.messages, errorMsg] }));
+      return;
+    }
+
     try {
+      console.log('[ChatWidget] Starting voice session...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
 
       const sessionPromise = gemini.connectVoice({
         onopen: () => {
+          console.log('[ChatWidget] Voice session opened');
           const source = inputCtx.createMediaStreamSource(stream);
           const processor = inputCtx.createScriptProcessor(4096, 1, 1);
           processor.onaudioprocess = (e: any) => {
             const int16 = new Int16Array(e.inputBuffer.getChannelData(0).length);
-            for (let i = 0; i < int16.length; i++) int16[i] = e.inputBuffer.getChannelData(0)[i] * 32768;
-            sessionPromise.then(s => s.sendRealtimeInput({ media: { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' } }));
+            for (let i = 0; i < int16.length; i++) {
+              int16[i] = e.inputBuffer.getChannelData(0)[i] * 32768;
+            }
+            sessionPromise.then(s => {
+              s.sendRealtimeInput({
+                media: {
+                  data: encode(new Uint8Array(int16.buffer)),
+                  mimeType: 'audio/pcm;rate=16000'
+                }
+              });
+            });
           };
           source.connect(processor);
           processor.connect(inputCtx.destination);
           setState(prev => ({ ...prev, isVoiceActive: true }));
         },
         onmessage: async (msg: any) => {
+          console.log('[ChatWidget] Voice message received:', msg);
           const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audio) {
             const outCtx = new AudioContext({ sampleRate: 24000 });
@@ -119,7 +185,12 @@ const ChatWidget: React.FC = () => {
           // Handle text responses in voice mode
           const textContent = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
           if (textContent) {
-            const assistantMsg: Message = { id: Date.now().toString(), role: 'assistant', content: textContent, timestamp: new Date() };
+            const assistantMsg: Message = {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: textContent,
+              timestamp: new Date()
+            };
             setState(prev => ({ ...prev, messages: [...prev.messages, assistantMsg] }));
           }
           // Handle function calls in voice mode
@@ -127,26 +198,50 @@ const ChatWidget: React.FC = () => {
           if (funcCalls) handleToolCalls(funcCalls);
         },
         onclose: () => {
+          console.log('[ChatWidget] Voice session closed');
           setState(prev => ({ ...prev, isVoiceActive: false }));
-          stream.getTracks().forEach(track => track.stop());
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
         },
         onerror: (error: any) => {
-          console.error('Voice error:', error);
+          console.error('[ChatWidget] Voice error:', error);
           setState(prev => ({ ...prev, isVoiceActive: false }));
+          const errorMsg: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: "Voice chat encountered an error. Please try again.",
+            timestamp: new Date()
+          };
+          setState(prev => ({ ...prev, messages: [...prev.messages, errorMsg] }));
         }
       });
 
       sessionRef.current = await sessionPromise;
+      console.log('[ChatWidget] Voice session established');
     } catch (e) {
-      console.error('Voice session error:', e);
+      console.error('[ChatWidget] Voice session error:', e);
       setState(prev => ({ ...prev, isVoiceActive: false }));
+      const errorMsg: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: "Could not start voice chat. Please check microphone permissions.",
+        timestamp: new Date()
+      };
+      setState(prev => ({ ...prev, messages: [...prev.messages, errorMsg] }));
     }
   };
 
   const stopVoiceSession = () => {
+    console.log('[ChatWidget] Stopping voice session...');
     if (sessionRef.current) {
       sessionRef.current.close();
       sessionRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     setState(prev => ({ ...prev, isVoiceActive: false }));
   };
@@ -268,12 +363,25 @@ const ChatWidget: React.FC = () => {
               </button>
             </div>
 
-            {/* Voice Chat Button */}
+            {/* Voice Chat Button - GREEN when ready, RED when active */}
             <button
               onClick={state.isVoiceActive ? stopVoiceSession : startVoiceSession}
-              className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase border-4 transition-all ${state.isVoiceActive ? 'bg-red-600 text-white border-red-700 animate-pulse' : 'bg-white text-amber-800 border-amber-600 hover:bg-amber-50'}`}
+              className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase border-4 transition-all flex items-center justify-center gap-3 ${
+                state.isVoiceActive
+                  ? 'bg-red-600 text-white border-red-700 animate-pulse'
+                  : 'bg-green-600 text-white border-green-700 hover:bg-green-700'
+              }`}
             >
-              {state.isVoiceActive ? '🎤 Voice Active - Tap to Stop' : '🎤 Start Voice Chat'}
+              {state.isVoiceActive ? (
+                <>
+                  <span className="w-4 h-4 bg-white rounded-full animate-ping"></span>
+                  <span>🎤 Voice Active - Tap to Hang Up</span>
+                </>
+              ) : (
+                <>
+                  <span>🎤 Start Voice Chat</span>
+                </>
+              )}
             </button>
           </div>
         </div>
