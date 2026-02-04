@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { chatWithHistory, GeminiResponse } from '@/lib/gemini';
-import { Language } from '@/types/chat';
+import { GoogleGenAI } from '@google/genai';
+import { SYSTEM_PROMPT, KNOWLEDGE_BASE } from '@/lib/constants';
 import {
   createApiResponse,
   createApiError,
@@ -22,13 +22,56 @@ function generateUUID(): string {
   });
 }
 
-// Chat message interface
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
+// Search knowledge base
+function searchKnowledge(query: string): string {
+  const keywords = query.toLowerCase().split(' ');
+  const matches = KNOWLEDGE_BASE.filter(item =>
+    keywords.some(kw =>
+      item.content.toLowerCase().includes(kw) ||
+      item.title.toLowerCase().includes(kw)
+    )
+  );
+  if (matches.length === 0) return "";
+  return matches.map(m => `${m.title}: ${m.content}`).join('\n\n');
 }
 
-// POST /api/ai/chat - Send a chat message
+// Server-side chat function
+async function serverChat(message: string, history: any[] = [], language: string = 'en') {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      text: "I apologize, but I'm not fully configured yet. Please contact the store directly at 470-359-7924.",
+      functionCalls: null
+    };
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const ragContext = searchKnowledge(message);
+  const fullPrompt = `${ragContext ? `Context:\n${ragContext}\n\n` : ''}User (speaking ${language}): ${message}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [...history, { role: 'user', parts: [{ text: fullPrompt }] }],
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+      },
+    });
+
+    return {
+      text: response.text || "I understood your request.",
+      functionCalls: response.functionCalls
+    };
+  } catch (error) {
+    console.error('Gemini server chat error:', error);
+    return {
+      text: "I apologize, but I encountered an issue. Please try again.",
+      functionCalls: null
+    };
+  }
+}
+
+// POST /api/ai/chat - Send a chat message (server-side fallback)
 export async function POST(request: NextRequest) {
   try {
     const body = await parseRequestBody(request);
@@ -45,93 +88,38 @@ export async function POST(request: NextRequest) {
     }
 
     const { message, sessionId, context } = validation.data;
-    const language = ((body as Record<string, unknown>).language as Language) || 'en';
+    const language = ((body as Record<string, unknown>).language as string) || 'en';
 
     // Get or create session
-    let currentSessionId = sessionId;
-    let previousMessages: ChatMessage[] = [];
-
-    if (supabase) {
-      if (sessionId) {
-        // Fetch existing session messages
-        const { data: session } = await supabase
-          .from('chat_sessions')
-          .select('id, status')
-          .eq('id', sessionId)
-          .single();
-
-        if (session && session.status === 'active') {
-          const { data: messages } = await supabase
-            .from('chat_messages')
-            .select('role, content')
-            .eq('session_id', sessionId)
-            .order('created_at', { ascending: true })
-            .limit(20);
-
-          previousMessages = (messages || []).map(m => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-          }));
-        } else {
-          currentSessionId = undefined;
-        }
-      }
-
-      if (!currentSessionId) {
-        currentSessionId = generateUUID();
-        await supabase.from('chat_sessions').insert({
-          id: currentSessionId,
-          customer_id: context?.customerId || null,
-          status: 'active',
-          started_at: new Date().toISOString(),
-        });
-      }
-    } else {
-      currentSessionId = sessionId || generateUUID();
-    }
-
-    // Build messages array
-    const messages: ChatMessage[] = [
-      ...previousMessages,
-      { role: 'user', content: message },
-    ];
+    let currentSessionId = sessionId || generateUUID();
 
     // Get Gemini response
-    const response: GeminiResponse = await chatWithHistory(messages, language);
+    const response = await serverChat(message, [], language);
 
-    // Save messages to database
+    // Save to database if available
     if (supabase && currentSessionId) {
-      // Save user message
-      await supabase.from('chat_messages').insert({
-        session_id: currentSessionId,
-        role: 'user',
-        content: message,
-        created_at: new Date().toISOString(),
-      });
+      try {
+        await supabase.from('chat_messages').insert({
+          session_id: currentSessionId,
+          role: 'user',
+          content: message,
+          created_at: new Date().toISOString(),
+        });
 
-      // Save assistant message
-      await supabase.from('chat_messages').insert({
-        session_id: currentSessionId,
-        role: 'assistant',
-        content: response.reply,
-        metadata: {
-          suggestedProducts: response.suggestedProducts,
-          functionCalls: response.functionCalls,
-        },
-        created_at: new Date().toISOString(),
-      });
-
-      // Update session last activity
-      await supabase
-        .from('chat_sessions')
-        .update({ last_activity_at: new Date().toISOString() })
-        .eq('id', currentSessionId);
+        await supabase.from('chat_messages').insert({
+          session_id: currentSessionId,
+          role: 'assistant',
+          content: response.text,
+          created_at: new Date().toISOString(),
+        });
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+      }
     }
 
     return createApiResponse({
-      reply: response.reply,
+      reply: response.text,
       sessionId: currentSessionId,
-      suggestedProducts: response.suggestedProducts,
       functionCalls: response.functionCalls,
     });
   } catch (error) {
@@ -156,28 +144,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch session
-    const { data: session, error: sessionError } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('id', sessionId)
-      .single();
-
-    if (sessionError || !session) {
-      return createApiError('NOT_FOUND', 'Chat session not found', 404);
-    }
-
-    // Fetch messages
     const { data: messages } = await supabase
       .from('chat_messages')
-      .select('role, content, metadata, created_at')
+      .select('role, content, created_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
 
     return createApiResponse({
-      sessionId: session.id,
-      status: session.status,
-      startedAt: session.started_at,
+      sessionId,
       messages: messages || [],
     });
   } catch (error) {

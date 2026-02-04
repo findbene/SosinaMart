@@ -1,397 +1,287 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Trash2, Loader2, X, Mic, MicOff, ShoppingCart, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useChat } from '@/context/ChatContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { Message, Language, ChatState, CartItem } from '@/types/chat';
+import { gemini, encode, decode, decodeAudioData } from '@/lib/gemini';
+import { searchKnowledge } from '@/lib/rag';
+import LanguageSelector from './LanguageSelector';
 import { useCart } from '@/context/CartContext';
-import { LanguageSelector } from './LanguageSelector';
-import { Button } from '@/components/ui/button';
-import { Product } from '@/types';
-import { formatPrice } from '@/lib/utils';
-import { LANGUAGE_NAMES } from '@/types/chat';
+import { PRODUCTS } from '@/lib/data';
 
-// Quick actions by language
-const QUICK_ACTIONS = {
-  en: [
-    'What spices do you recommend?',
-    'Tell me about coffee ceremony',
-    'What kitchenware is available?',
-    'Add berbere to my cart',
-  ],
-  am: [
-    'ምን ቅመም ይመክራሉ?',
-    'ስለ ቡና ሥነ ሥርዓት ንገሩኝ',
-    'ምን የወጥ ቤት እቃዎች አሉ?',
-  ],
-  ti: [
-    'ኣየናይ ቅመማት ተመክሩ?',
-    'ብዛዕባ ስነ-ስርዓት ቡና ንገሩኒ',
-  ],
-  es: [
-    '¿Qué especias recomienda?',
-    'Cuéntame sobre la ceremonia del café',
-    '¿Qué utensilios de cocina hay?',
-  ],
-};
+const KIDIST_AVATAR = "https://images.unsplash.com/photo-1523824921871-d6f1a15151f1?auto=format&fit=crop&q=80&w=400&h=400";
 
-export function ChatWidget() {
-  const {
-    messages,
-    isOpen,
-    setIsOpen,
-    isTyping,
-    language,
-    setLanguage,
-    sendMessage,
-    clearSession,
-    isVoiceActive,
-    isVoiceSupported,
-    toggleVoice,
-  } = useChat();
+const ChatWidget: React.FC = () => {
+  const { addToCart } = useCart();
+  const [isOpen, setIsOpen] = useState(false);
+  const [state, setState] = useState<ChatState>({
+    messages: [
+      {
+        id: '1',
+        role: 'assistant',
+        content: 'Hi! Welcome, my name is Kidist. How can I help you today? I can help you browse through our items, help you pick up items you liked and wanted, load them into your cart, and finally help you pay for them. I can also help you with the pickup information or delivery information!',
+        timestamp: new Date()
+      }
+    ],
+    isVoiceActive: false,
+    currentLanguage: Language.ENGLISH,
+    isProcessing: false,
+    cart: [],
+    view: 'chat'
+  });
 
   const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sessionRef = useRef<any>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [state.messages, state.isProcessing, state.view]);
 
-  // Focus input when panel opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [isOpen]);
+  const handleToolCalls = (calls: any[]) => {
+    calls.forEach(call => {
+      if (call.name === 'add_to_cart' && call.args?.items) {
+        call.args.items.forEach((item: any) => {
+          // Find matching product in our catalog
+          const product = PRODUCTS.find(p =>
+            p.name.toLowerCase().includes(item.name.toLowerCase()) ||
+            item.name.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (product) {
+            // Add to the actual cart
+            for (let i = 0; i < (item.quantity || 1); i++) {
+              addToCart(product);
+            }
+          }
+        });
+        // Also track in local state for display
+        const newItems: CartItem[] = call.args.items.map((item: any) => ({
+          ...item,
+          id: Math.random().toString(36).substr(2, 9)
+        }));
+        setState(prev => ({ ...prev, cart: [...prev.cart, ...newItems], view: 'cart' }));
+      } else if (call.name === 'start_checkout') {
+        setState(prev => ({ ...prev, view: 'checkout' }));
+        // Trigger checkout modal
+        const checkoutEvent = new CustomEvent('openCheckout');
+        window.dispatchEvent(checkoutEvent);
+      }
+    });
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isTyping) return;
-
-    const message = input;
+  const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
+    setState(prev => ({ ...prev, messages: [...prev.messages, userMsg], isProcessing: true }));
     setInput('');
-    await sendMessage(message);
-  };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
+    try {
+      const ragContext = await searchKnowledge(text);
+      const history = state.messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+      const { text: response, functionCalls } = await gemini.chat(text, history, ragContext, state.currentLanguage);
+      if (functionCalls) handleToolCalls(functionCalls);
+      const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: response || "Understood!", timestamp: new Date() };
+      setState(prev => ({ ...prev, messages: [...prev.messages, assistantMsg], isProcessing: false }));
+    } catch (err) {
+      console.error(err);
+      const errorMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: "I apologize, but I encountered an issue. Please try again or contact the store directly at 470-359-7924.", timestamp: new Date() };
+      setState(prev => ({ ...prev, messages: [...prev.messages, errorMsg], isProcessing: false }));
     }
   };
 
-  const quickActions = QUICK_ACTIONS[language] || QUICK_ACTIONS.en;
+  const startVoiceSession = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
 
-  // Greeting based on language
-  const getGreeting = () => {
-    switch (language) {
-      case 'am':
-        return { title: 'ሰላም! እኔ ቅድስት ነኝ', subtitle: 'ዛሬ በምን ልርዳዎት?' };
-      case 'ti':
-        return { title: 'ሰላም! ኣነ ቅድስት እየ', subtitle: 'ሎሚ ብኸመይ ክሕግዘኩም?' };
-      case 'es':
-        return { title: '¡Hola! Soy Kidist', subtitle: '¿Cómo puedo ayudarle hoy?' };
-      default:
-        return { title: "Hi! I'm Kidist", subtitle: 'Your Ethiopian shopping assistant' };
+      const sessionPromise = gemini.connectVoice({
+        onopen: () => {
+          const source = inputCtx.createMediaStreamSource(stream);
+          const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+          processor.onaudioprocess = (e: any) => {
+            const int16 = new Int16Array(e.inputBuffer.getChannelData(0).length);
+            for (let i = 0; i < int16.length; i++) int16[i] = e.inputBuffer.getChannelData(0)[i] * 32768;
+            sessionPromise.then(s => s.sendRealtimeInput({ media: { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' } }));
+          };
+          source.connect(processor);
+          processor.connect(inputCtx.destination);
+          setState(prev => ({ ...prev, isVoiceActive: true }));
+        },
+        onmessage: async (msg: any) => {
+          const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          if (audio) {
+            const outCtx = new AudioContext({ sampleRate: 24000 });
+            const buffer = await decodeAudioData(decode(audio), outCtx, 24000, 1);
+            const src = outCtx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(outCtx.destination);
+            src.start();
+          }
+          // Handle text responses in voice mode
+          const textContent = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
+          if (textContent) {
+            const assistantMsg: Message = { id: Date.now().toString(), role: 'assistant', content: textContent, timestamp: new Date() };
+            setState(prev => ({ ...prev, messages: [...prev.messages, assistantMsg] }));
+          }
+          // Handle function calls in voice mode
+          const funcCalls = msg.toolCall?.functionCalls;
+          if (funcCalls) handleToolCalls(funcCalls);
+        },
+        onclose: () => {
+          setState(prev => ({ ...prev, isVoiceActive: false }));
+          stream.getTracks().forEach(track => track.stop());
+        },
+        onerror: (error: any) => {
+          console.error('Voice error:', error);
+          setState(prev => ({ ...prev, isVoiceActive: false }));
+        }
+      });
+
+      sessionRef.current = await sessionPromise;
+    } catch (e) {
+      console.error('Voice session error:', e);
+      setState(prev => ({ ...prev, isVoiceActive: false }));
     }
   };
 
-  const greeting = getGreeting();
+  const stopVoiceSession = () => {
+    if (sessionRef.current) {
+      sessionRef.current.close();
+      sessionRef.current = null;
+    }
+    setState(prev => ({ ...prev, isVoiceActive: false }));
+  };
 
   return (
-    <>
-      {/* Chat Panel */}
-      <div
-        className={cn(
-          'fixed bottom-20 right-4 z-50 transition-all duration-300 ease-in-out',
-          isOpen
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-4 pointer-events-none'
-        )}
-      >
-        <div className="w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-8rem)] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
-          {/* Header with Ethiopian colors */}
-          <div className="relative bg-gradient-to-r from-green-600 via-yellow-500 to-red-600 text-white px-4 py-3">
-            {/* Ethiopian pattern overlay */}
-            <div className="absolute inset-0 bg-black/10" />
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-5">
+      {!isOpen ? (
+        <div className="flex flex-col items-end group">
+          {/* Bouncing Cloud Bubble */}
+          <div className="relative animate-bounce">
+            <div
+              className="bg-white px-10 py-5 rounded-[2.5rem] border-2 border-amber-500 text-amber-900 text-[14px] font-black hidden md:block uppercase tracking-tight shadow-2xl mb-4 relative z-10"
+              style={{ boxShadow: '0 -4px 15px rgba(0, 154, 68, 0.2), 0 0 25px rgba(254, 209, 0, 0.2), 0 4px 35px rgba(239, 51, 64, 0.2)' }}
+            >
+              Ask Kidist: Your Support & Concierge
+            </div>
+            <div className="absolute bottom-[8px] right-10 w-8 h-8 bg-white border-r-2 border-b-2 border-amber-500 rotate-45 hidden md:block z-0"></div>
+          </div>
 
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Kidist Avatar */}
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg">
-                  👩🏾
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white drop-shadow">Kidist</h3>
-                  <p className="text-xs text-white/90">Shopping Assistant</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <LanguageSelector value={language} onChange={setLanguage} />
-                <button
-                  onClick={clearSession}
-                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
-                  title="Clear chat"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
-                  title="Close chat"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+          {/* Ethiopian Flag Button */}
+          <button
+            onClick={() => setIsOpen(true)}
+            className="w-32 h-32 rounded-full flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 border-[8px] border-white relative overflow-hidden shadow-2xl"
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <pattern id="flag-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <rect x="0" y="0" width="100" height="33.3" fill="#009A44" />
+                  <rect x="0" y="33.3" width="100" height="33.4" fill="#FED100" />
+                  <rect x="0" y="66.7" width="100" height="33.3" fill="#EF3340" />
+                </pattern>
+              </defs>
+              <g className="animate-[flag-wave_2s_ease-in-out_infinite]">
+                <rect width="100" height="100" fill="url(#flag-pattern)" />
+              </g>
+            </svg>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-40 z-20"></div>
+            <div className="relative z-30">
+              <svg className="w-16 h-16 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <style>{`
+              @keyframes flag-wave {
+                0%, 100% { transform: scale(1.4) skewX(-20deg) translateY(-3px); }
+                50% { transform: scale(1.4) skewX(20deg) translateY(3px); }
+              }
+            `}</style>
+          </button>
+        </div>
+      ) : (
+        /* Chat Panel */
+        <div className="w-full sm:w-[540px] h-[860px] max-h-[96vh] bg-white rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden border ring-[15px] ring-amber-500/10 animate-in slide-in-from-bottom-12">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 p-8 text-white flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-6">
+              <img src={KIDIST_AVATAR} className="w-20 h-20 rounded-full border-4 border-white object-cover" alt="Kidist" />
+              <div>
+                <h3 className="font-black text-2xl uppercase italic">Kidist</h3>
+                <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-bold tracking-widest">Support & Concierge</span>
               </div>
             </div>
+            <button onClick={() => setIsOpen(false)} className="bg-white text-amber-800 p-3 rounded-full shadow-lg hover:scale-110 transition-transform">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Language Selector Bar */}
+          <div className="px-8 py-4 border-b flex justify-between items-center bg-amber-50/30">
+            <span className="text-[10px] font-black text-amber-900/40 uppercase tracking-widest">Language</span>
+            <LanguageSelector
+              currentLanguage={state.currentLanguage}
+              onLanguageChange={(l) => setState(p => ({ ...p, currentLanguage: l }))}
+            />
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-            {messages.length === 0 ? (
-              <div className="text-center py-6">
-                <div className="text-5xl mb-3">👩🏾‍💼</div>
-                <p className="text-gray-800 font-semibold">{greeting.title}</p>
-                <p className="text-sm text-gray-500 mt-1">{greeting.subtitle}</p>
-
-                <div className="mt-5 space-y-2">
-                  {quickActions.map((action, index) => (
-                    <button
-                      key={index}
-                      onClick={() => sendMessage(action)}
-                      className={cn(
-                        'block w-full text-left px-3 py-2.5 text-sm bg-white rounded-lg border',
-                        'hover:border-green-500 hover:text-green-700 hover:bg-green-50',
-                        'transition-all duration-200'
-                      )}
-                    >
-                      {action}
-                    </button>
-                  ))}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 bg-gray-50/50">
+            {state.messages.map(m => (
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] p-6 rounded-[2rem] shadow-sm text-sm ${m.role === 'user' ? 'bg-amber-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-amber-100'}`}>
+                  {m.content}
                 </div>
               </div>
-            ) : (
-              messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
-              ))
-            )}
-
-            {/* Typing indicator */}
-            {isTyping && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 shadow-sm">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-600 to-yellow-500 flex items-center justify-center text-xs">
-                    👩🏾
-                  </div>
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            ))}
+            {state.isProcessing && (
+              <div className="flex justify-start">
+                <div className="bg-white p-4 rounded-[2rem] border border-amber-100 shadow-sm">
+                  <div className="animate-pulse flex gap-2">
+                    <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+                    <div className="w-2 h-2 bg-amber-400 rounded-full animation-delay-150"></div>
+                    <div className="w-2 h-2 bg-amber-400 rounded-full animation-delay-300"></div>
                   </div>
                 </div>
               </div>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="p-3 border-t bg-white">
-            <div className="flex items-end gap-2">
-              {/* Voice button */}
-              {isVoiceSupported && (
-                <button
-                  type="button"
-                  onClick={toggleVoice}
-                  className={cn(
-                    'p-2 rounded-lg transition-colors shrink-0',
-                    isVoiceActive
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  )}
-                  title={isVoiceActive ? 'Stop voice' : 'Start voice'}
-                >
-                  {isVoiceActive ? (
-                    <MicOff className="h-4 w-4" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
-                </button>
-              )}
-
-              <textarea
-                ref={inputRef}
+          {/* Input Area */}
+          <div className="p-10 bg-white border-t space-y-5">
+            <div className="flex gap-4">
+              <input
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  language === 'am' ? 'መልእክትዎን ይጻፉ...' :
-                  language === 'ti' ? 'መልእኽትኹም ጸሓፉ...' :
-                  language === 'es' ? 'Escribe tu mensaje...' :
-                  'Type your message...'
-                }
-                rows={1}
-                className={cn(
-                  'flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent',
-                  'placeholder:text-gray-400',
-                  'max-h-32'
-                )}
-                disabled={isTyping}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend(input)}
+                className="flex-1 bg-gray-50 border-2 rounded-[1.5rem] px-6 py-4 focus:border-amber-600 outline-none text-gray-800"
+                placeholder="Talk to Kidist..."
               />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={!input.trim() || isTyping}
-                className="shrink-0 bg-green-600 hover:bg-green-700"
+              <button
+                onClick={() => handleSend(input)}
+                disabled={state.isProcessing || !input.trim()}
+                className="bg-amber-700 text-white rounded-[1.5rem] px-6 shadow-lg hover:bg-amber-800 transition-colors disabled:opacity-50"
               >
-                {isTyping ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
             </div>
-          </form>
-        </div>
-      </div>
 
-      {/* Floating Action Button - Ethiopian Flag Style */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full shadow-lg transition-all duration-300',
-          'flex items-center justify-center overflow-hidden',
-          'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
-          isOpen ? 'rotate-0' : 'hover:scale-110'
-        )}
-        style={{
-          background: isOpen
-            ? '#DC2626' // Red when open (close button)
-            : 'linear-gradient(135deg, #16A34A 0%, #16A34A 33%, #EAB308 33%, #EAB308 66%, #DC2626 66%, #DC2626 100%)'
-        }}
-        aria-label={isOpen ? 'Close chat' : 'Open chat with Kidist'}
-      >
-        {isOpen ? (
-          <X className="h-6 w-6 text-white" />
-        ) : (
-          <span className="text-2xl">💬</span>
-        )}
-      </button>
-    </>
-  );
-}
-
-// Chat Message Component
-interface ChatMessageData {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  suggestedProducts?: Product[];
-}
-
-function ChatMessage({ message }: { message: ChatMessageData }) {
-  const { addToCart, isInCart } = useCart();
-  const isUser = message.role === 'user';
-
-  return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div className="flex items-end gap-2 max-w-[85%]">
-        {!isUser && (
-          <div className="w-7 h-7 rounded-full bg-gradient-to-r from-green-600 to-yellow-500 flex items-center justify-center text-xs shrink-0">
-            👩🏾
+            {/* Voice Chat Button */}
+            <button
+              onClick={state.isVoiceActive ? stopVoiceSession : startVoiceSession}
+              className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase border-4 transition-all ${state.isVoiceActive ? 'bg-red-600 text-white border-red-700 animate-pulse' : 'bg-white text-amber-800 border-amber-600 hover:bg-amber-50'}`}
+            >
+              {state.isVoiceActive ? '🎤 Voice Active - Tap to Stop' : '🎤 Start Voice Chat'}
+            </button>
           </div>
-        )}
-        <div
-          className={cn(
-            'rounded-lg px-3 py-2',
-            isUser
-              ? 'bg-green-600 text-white rounded-br-sm'
-              : 'bg-white text-gray-900 shadow-sm rounded-bl-sm'
-          )}
-        >
-          {/* Message content */}
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-
-          {/* Suggested products */}
-          {message.suggestedProducts && message.suggestedProducts.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs font-medium text-gray-500">Suggested products:</p>
-              <div className="space-y-2">
-                {message.suggestedProducts.slice(0, 3).map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={() => addToCart(product)}
-                    isInCart={isInCart(product.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Timestamp */}
-          <p
-            className={cn(
-              'text-[10px] mt-1',
-              isUser ? 'text-white/70' : 'text-gray-400'
-            )}
-          >
-            {formatTime(message.timestamp)}
-          </p>
         </div>
-      </div>
+      )}
     </div>
   );
-}
+};
 
-function ProductCard({
-  product,
-  onAddToCart,
-  isInCart,
-}: {
-  product: Product;
-  onAddToCart: () => void;
-  isInCart: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-      <img
-        src={product.image}
-        alt={product.name}
-        className="w-10 h-10 rounded object-cover bg-gray-200"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = '/images/placeholder.png';
-        }}
-      />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-900 truncate">{product.name}</p>
-        <p className="text-xs text-green-600 font-semibold">{formatPrice(product.price)}</p>
-      </div>
-      <button
-        onClick={onAddToCart}
-        disabled={isInCart}
-        className={cn(
-          'p-1.5 rounded-md transition-colors',
-          isInCart
-            ? 'bg-green-100 text-green-600'
-            : 'bg-green-600/10 text-green-600 hover:bg-green-600/20'
-        )}
-      >
-        {isInCart ? (
-          <Check className="h-3.5 w-3.5" />
-        ) : (
-          <ShoppingCart className="h-3.5 w-3.5" />
-        )}
-      </button>
-    </div>
-  );
-}
+export default ChatWidget;
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+export { ChatWidget };

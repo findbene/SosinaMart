@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { getProductRecommendations } from '@/lib/rag';
 import { PRODUCTS } from '@/lib/data';
 import { Product } from '@/types';
 import {

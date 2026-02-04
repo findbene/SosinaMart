@@ -1,91 +1,40 @@
-// Language Support
-export type Language = 'en' | 'am' | 'ti' | 'es';
+export enum Language {
+  ENGLISH = 'en',
+  AMHARIC = 'am',
+  TIGRIGNA = 'ti',
+  SPANISH = 'es'
+}
 
-export const LANGUAGE_NAMES: Record<Language, string> = {
-  en: 'English',
-  am: 'Amharic',
-  ti: 'Tigrigna',
-  es: 'Spanish',
-};
-
-export const LANGUAGE_FLAGS: Record<Language, string> = {
-  en: '🇺🇸',
-  am: '🇪🇹',
-  ti: '🇪🇷',
-  es: '🇪🇸',
-};
-
-// Chat Message Types
-export interface GeminiMessage {
+export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  functionCalls?: FunctionCall[];
-  suggestedProducts?: string[]; // Product IDs
 }
 
-export interface FunctionCall {
+export interface CartItem {
+  id: string;
   name: string;
-  args: Record<string, unknown>;
-}
-
-// Cart item structure for Gemini function calls
-export interface GeminiCartItem {
-  productId: string;
-  productName: string;
-  quantity: number;
   price: number;
+  quantity: number;
+  unit: 'kg' | 'lb' | 'pcs';
 }
 
-// Chat State
+export type ChatView = 'chat' | 'cart' | 'checkout' | 'payment' | 'success';
+
 export interface ChatState {
-  messages: GeminiMessage[];
-  isTyping: boolean;
-  isOpen: boolean;
-  language: Language;
-  sessionId: string | null;
+  messages: Message[];
   isVoiceActive: boolean;
-  isVoiceSupported: boolean;
+  currentLanguage: Language;
+  isProcessing: boolean;
+  cart: CartItem[];
+  view: ChatView;
+  orderId?: string;
 }
 
-// Knowledge Base Types for RAG
 export interface KnowledgeItem {
   id: string;
-  type: 'product' | 'store_info' | 'faq' | 'culture';
   title: string;
   content: string;
-  keywords: string[];
-  metadata?: Record<string, unknown>;
-}
-
-// API Response Types
-export interface GeminiChatResponse {
-  reply: string;
-  sessionId: string;
-  functionCalls?: FunctionCall[];
-  suggestedProducts?: string[];
-}
-
-// Voice Types
-export interface VoiceState {
-  isConnected: boolean;
-  isListening: boolean;
-  isSpeaking: boolean;
-  error: string | null;
-}
-
-// Gemini Function Declaration Types
-export interface GeminiFunctionDeclaration {
-  name: string;
-  description: string;
-  parameters: {
-    type: string;
-    properties: Record<string, {
-      type: string;
-      description: string;
-      items?: { type: string };
-    }>;
-    required: string[];
-  };
+  category: 'store_info' | 'shipping' | 'products' | 'returns';
 }
