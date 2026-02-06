@@ -203,6 +203,29 @@ export default function AdminOrdersPage() {
         </Button>
       </div>
 
+      {/* Status Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {[
+          { label: 'Pending', status: 'pending', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+          { label: 'Processing', status: 'processing', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+          { label: 'Shipped', status: 'shipped', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+          { label: 'Delivered', status: 'delivered', color: 'bg-green-100 text-green-800 border-green-200' },
+          { label: 'Cancelled', status: 'cancelled', color: 'bg-red-100 text-red-800 border-red-200' },
+        ].map(s => {
+          const count = orders.filter(o => o.status === s.status).length;
+          return (
+            <button
+              key={s.status}
+              onClick={() => setStatusFilter(statusFilter === s.status ? 'all' : s.status)}
+              className={`p-3 rounded-xl border text-center transition-all ${statusFilter === s.status ? s.color + ' ring-2 ring-offset-1 ring-current' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="text-2xl font-bold">{count}</div>
+              <div className="text-xs font-medium mt-0.5">{s.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">

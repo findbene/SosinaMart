@@ -122,9 +122,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
+      <div className="bg-gradient-to-r from-primary to-primary-dark rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-bold">Welcome back!</h1>
+        <p className="text-white/80 mt-1">Here&apos;s what&apos;s happening with your store today.</p>
       </div>
 
       {/* Stats grid */}
@@ -239,27 +239,33 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/admin/products"
-          className="p-4 bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all group"
+          className="p-5 bg-white rounded-xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all group"
         >
-          <Package className="h-8 w-8 text-primary mb-2" />
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3">
+            <Package className="h-6 w-6 text-white" />
+          </div>
           <h3 className="font-semibold text-gray-900 group-hover:text-primary">Manage Products</h3>
-          <p className="text-sm text-gray-500">Add, edit or remove products</p>
+          <p className="text-sm text-gray-500 mt-1">Add, edit or remove products</p>
         </Link>
         <Link
           href="/admin/customers"
-          className="p-4 bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all group"
+          className="p-5 bg-white rounded-xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all group"
         >
-          <Users className="h-8 w-8 text-primary mb-2" />
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-3">
+            <Users className="h-6 w-6 text-white" />
+          </div>
           <h3 className="font-semibold text-gray-900 group-hover:text-primary">View Customers</h3>
-          <p className="text-sm text-gray-500">Manage customer relationships</p>
+          <p className="text-sm text-gray-500 mt-1">Manage customer relationships</p>
         </Link>
         <Link
           href="/admin/analytics"
-          className="p-4 bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all group"
+          className="p-5 bg-white rounded-xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all group"
         >
-          <TrendingUp className="h-8 w-8 text-primary mb-2" />
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-3">
+            <TrendingUp className="h-6 w-6 text-white" />
+          </div>
           <h3 className="font-semibold text-gray-900 group-hover:text-primary">View Analytics</h3>
-          <p className="text-sm text-gray-500">Track sales and performance</p>
+          <p className="text-sm text-gray-500 mt-1">Track sales and performance</p>
         </Link>
       </div>
     </div>

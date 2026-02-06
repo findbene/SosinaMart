@@ -1,10 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function Hero() {
+  const { t } = useLanguage();
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-start overflow-hidden pt-16">
+    <section className="relative min-h-[50vh] sm:min-h-[70vh] flex items-center justify-start overflow-hidden pt-16">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image
@@ -40,13 +42,13 @@ export default function Hero() {
           {/* Text */}
           <div className="text-white text-center md:text-left">
             <span className="text-xl md:text-2xl font-light drop-shadow-lg">
-              Welcome to
+              {t.hero.welcomeTo}
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-wide mt-2 drop-shadow-xl">
-              SOSINA MART
+              {t.hero.storeName}
             </h1>
             <p className="text-lg md:text-xl mt-4 opacity-90 drop-shadow-md max-w-xl">
-              Authentic Ethiopian Products in Atlanta
+              {t.hero.tagline}
             </p>
           </div>
         </div>

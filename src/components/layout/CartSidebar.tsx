@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X, Plus, Minus, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { cn, formatPrice } from "@/lib/utils";
 import CheckoutModal from "@/components/checkout/CheckoutModal";
 
@@ -15,6 +16,7 @@ interface CartSidebarProps {
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { items, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+  const { t } = useLanguage();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const handleCheckout = () => {
@@ -42,7 +44,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-primary text-white">
-          <h2 className="text-xl font-semibold">Your Cart</h2>
+          <h2 className="text-xl font-semibold">{t.cart.yourCart}</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -58,8 +60,8 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <ShoppingBag className="w-16 h-16 mb-4 opacity-50" />
-              <p className="text-lg font-medium">Your cart is empty</p>
-              <p className="text-sm mt-2">Add some products to get started!</p>
+              <p className="text-lg font-medium">{t.cart.emptyCart}</p>
+              <p className="text-sm mt-2">{t.cart.emptyCartSub}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -129,7 +131,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               window.location.href = "/cart";
             }}
           >
-            View Full Cart
+            {t.cart.viewFullCart}
           </Button>
 
           <Button
@@ -138,7 +140,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             onClick={handleCheckout}
             disabled={items.length === 0}
           >
-            Proceed to Checkout
+            {t.cart.proceedToCheckout}
           </Button>
 
           <Button
@@ -146,7 +148,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             className="w-full"
             onClick={onClose}
           >
-            Continue Shopping
+            {t.cart.continueShopping}
           </Button>
         </div>
       </div>

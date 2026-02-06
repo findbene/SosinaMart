@@ -128,7 +128,26 @@ export default function AdminProductsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Category Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {categories.map(cat => {
+          const count = cat === 'all' ? products.length : products.filter(p => p.category === cat).length;
+          const inStock = cat === 'all' ? products.filter(p => p.inStock).length : products.filter(p => p.category === cat && p.inStock).length;
+          return (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`p-4 rounded-xl border transition-all text-left ${categoryFilter === cat ? 'ring-2 ring-primary border-primary bg-primary/5' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="text-2xl font-bold text-gray-900">{count}</div>
+              <div className="text-xs font-medium text-gray-500 capitalize">{cat === 'all' ? 'All Products' : cat.replace('-', ' ')}</div>
+              <div className="text-xs text-green-600 mt-1">{inStock} in stock</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -140,17 +159,6 @@ export default function AdminProductsPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary capitalize"
-        >
-          {categories.map((category) => (
-            <option key={category} value={category} className="capitalize">
-              {category === 'all' ? 'All Categories' : category.replace('-', ' ')}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Products table */}

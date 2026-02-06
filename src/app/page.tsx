@@ -7,9 +7,11 @@ import Hero from "@/components/sections/Hero";
 import Carousel from "@/components/sections/Carousel";
 import ProductSection from "@/components/sections/ProductSection";
 import AllProductsModal from "@/components/products/AllProductsModal";
+import { useLanguage } from "@/context/LanguageContext";
 import { PRODUCTS, SECTION_TITLES, getProductsByCategory } from "@/lib/data";
 
 export default function Home() {
+  const { t } = useLanguage();
   const [isAllProductsOpen, setIsAllProductsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -33,7 +35,7 @@ export default function Home() {
         <div className="bg-white">
           <ProductSection
             id="food-section"
-            title={SECTION_TITLES.food}
+            title={t.categories.food}
             products={getProductsByCategory("food")}
             category="food"
             onViewMore={handleViewMore}
@@ -43,7 +45,7 @@ export default function Home() {
         <div className="bg-gray-50">
           <ProductSection
             id="kitchenware-section"
-            title={SECTION_TITLES.kitchenware}
+            title={t.categories.kitchenware}
             products={getProductsByCategory("kitchenware")}
             category="kitchenware"
             onViewMore={handleViewMore}
@@ -53,7 +55,7 @@ export default function Home() {
         <div className="bg-white">
           <ProductSection
             id="artifacts-section"
-            title={SECTION_TITLES.artifacts}
+            title={t.categories.artifacts}
             products={getProductsByCategory("artifacts")}
             category="artifacts"
             onViewMore={handleViewMore}

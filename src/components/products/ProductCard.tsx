@@ -3,6 +3,7 @@
 import { Check, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Product } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart, isInCart } = useCart();
+  const { t } = useLanguage();
   const inCart = isInCart(product.id);
 
   const handleAddToCart = () => {
@@ -56,12 +58,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           {inCart ? (
             <>
               <Check className="w-4 h-4" />
-              Added to Cart
+              {t.products.addedToCart}
             </>
           ) : (
             <>
               <ShoppingCart className="w-4 h-4" />
-              Add to Cart
+              {t.products.addToCart}
             </>
           )}
         </Button>

@@ -166,8 +166,15 @@ export default function AdminAnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue chart (simplified bar chart) */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold mb-6">Revenue Trend</h2>
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">Revenue Trend</h2>
+            {data?.revenue.change && (
+              <span className={`text-sm font-medium px-2 py-1 rounded-full ${data.revenue.change >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {data.revenue.change >= 0 ? '+' : ''}{data.revenue.change}%
+              </span>
+            )}
+          </div>
           {isLoading ? (
             <div className="h-64 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -196,7 +203,7 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {/* Order status breakdown */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold mb-6">Order Status</h2>
           {isLoading ? (
             <div className="h-64 flex items-center justify-center">
@@ -230,7 +237,7 @@ export default function AdminAnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top products */}
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Top Products</h2>
           </div>
@@ -257,7 +264,7 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {/* Top categories */}
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Top Categories</h2>
           </div>
