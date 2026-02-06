@@ -16,7 +16,8 @@ Sosina Mart is a Next.js 14 e-commerce application for an Ethiopian store sellin
 | UI Components | Radix UI, Lucide Icons |
 | Authentication | NextAuth.js (Credentials Provider) |
 | Database | Supabase (PostgreSQL) |
-| AI | Google Gemini 2.0 Flash |
+| AI | Google Gemini 2.5 Flash (text) / Gemini 2.5 Flash Native Audio (voice) |
+| AI SDK | @google/genai v1.40.0 |
 | Validation | Zod |
 | Testing | Jest, React Testing Library, Playwright |
 | Deployment | Vercel |
@@ -122,6 +123,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 
 # AI (optional - for Kidist chat features)
 GEMINI_API_KEY=<google-gemini-api-key>
+NEXT_PUBLIC_GEMINI_API_KEY=<google-gemini-api-key>  # Required for client-side voice chat
 ```
 
 ## Database Schema
@@ -155,10 +157,14 @@ Located in `supabase/migrations/001_initial_schema.sql`:
 ## AI Architecture
 
 ### Gemini Integration (`src/lib/gemini.ts`)
-- Uses `@google/genai` SDK with Gemini 2.0 Flash model
+- Uses `@google/genai` SDK v1.40.0
+- Text chat: `gemini-2.5-flash` model (server-side via `GEMINI_API_KEY`)
+- Voice chat: `gemini-2.5-flash-native-audio-latest` model (client-side via `NEXT_PUBLIC_GEMINI_API_KEY`)
 - Kidist persona system prompt with multilingual support
 - Action blocks for cart operations (parsed from response)
 - Fallback responses when API is unavailable
+- Voice uses Live API (bidiGenerateContent) with PCM audio (16kHz in, 24kHz out)
+- Gapless audio scheduling via AudioContext.currentTime for smooth playback
 
 ### RAG Service (`src/lib/rag.ts`)
 - Builds knowledge base from `PRODUCTS` and `STORE_INFO`
@@ -218,8 +224,10 @@ The app auto-deploys to Vercel on push to `main` branch.
 1. Push changes to GitHub
 2. Vercel automatically builds and deploys
 3. Configure environment variables in Vercel dashboard:
-   - `GEMINI_API_KEY` for AI chat features
+   - `GEMINI_API_KEY` for server-side AI chat
+   - `NEXT_PUBLIC_GEMINI_API_KEY` for client-side voice chat (must redeploy after setting)
    - `NEXTAUTH_SECRET` for authentication
+   - `NEXTAUTH_URL` set to `https://sosina-mart.vercel.app`
    - Supabase credentials for database
 
 ## Notes for Claude
