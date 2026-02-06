@@ -34,6 +34,10 @@ const ChatWidget: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const outputCtxRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<AudioBuffer[]>([]);
+  const isPlayingRef = useRef(false);
+  const inputCtxRef = useRef<AudioContext | null>(null);
 
   // Check if API key is configured
   const apiKeyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -129,6 +133,34 @@ const ChatWidget: React.FC = () => {
     }
   };
 
+  // Sequential audio playback — plays queued chunks one after another
+  const playNextInQueue = () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
+    const outCtx = outputCtxRef.current;
+    if (!outCtx) return;
+
+    isPlayingRef.current = true;
+    const buffer = audioQueueRef.current.shift()!;
+    const src = outCtx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(outCtx.destination);
+    src.onended = () => {
+      isPlayingRef.current = false;
+      playNextInQueue();
+    };
+    src.start();
+  };
+
+  const enqueueAudio = async (base64Data: string) => {
+    if (!outputCtxRef.current) {
+      outputCtxRef.current = new AudioContext({ sampleRate: 24000 });
+    }
+    const outCtx = outputCtxRef.current;
+    const buffer = await decodeAudioData(decode(base64Data), outCtx, 24000, 1);
+    audioQueueRef.current.push(buffer);
+    playNextInQueue();
+  };
+
   const startVoiceSession = async () => {
     if (!apiKeyConfigured) {
       const errorMsg: Message = {
@@ -146,7 +178,17 @@ const ChatWidget: React.FC = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      // Single shared output context for playback
+      if (!outputCtxRef.current) {
+        outputCtxRef.current = new AudioContext({ sampleRate: 24000 });
+      }
+      // Clear any leftover audio queue
+      audioQueueRef.current = [];
+      isPlayingRef.current = false;
+
+      // Input context for mic capture at 16kHz
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      inputCtxRef.current = inputCtx;
 
       const sessionPromise = gemini.connectVoice({
         onopen: () => {
@@ -154,9 +196,10 @@ const ChatWidget: React.FC = () => {
           const source = inputCtx.createMediaStreamSource(stream);
           const processor = inputCtx.createScriptProcessor(4096, 1, 1);
           processor.onaudioprocess = (e: any) => {
-            const int16 = new Int16Array(e.inputBuffer.getChannelData(0).length);
-            for (let i = 0; i < int16.length; i++) {
-              int16[i] = e.inputBuffer.getChannelData(0)[i] * 32768;
+            const float32 = e.inputBuffer.getChannelData(0);
+            const int16 = new Int16Array(float32.length);
+            for (let i = 0; i < float32.length; i++) {
+              int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
             }
             sessionPromise.then(s => {
               s.sendRealtimeInput({
@@ -168,19 +211,18 @@ const ChatWidget: React.FC = () => {
             });
           };
           source.connect(processor);
-          processor.connect(inputCtx.destination);
+          // Connect to a silent gain node instead of destination to prevent mic feedback
+          const silentGain = inputCtx.createGain();
+          silentGain.gain.value = 0;
+          silentGain.connect(inputCtx.destination);
+          processor.connect(silentGain);
           setState(prev => ({ ...prev, isVoiceActive: true }));
         },
         onmessage: async (msg: any) => {
-          console.log('[ChatWidget] Voice message received:', msg);
+          // Queue audio chunks for sequential playback
           const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audio) {
-            const outCtx = new AudioContext({ sampleRate: 24000 });
-            const buffer = await decodeAudioData(decode(audio), outCtx, 24000, 1);
-            const src = outCtx.createBufferSource();
-            src.buffer = buffer;
-            src.connect(outCtx.destination);
-            src.start();
+            enqueueAudio(audio);
           }
           // Handle text responses in voice mode
           const textContent = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
@@ -243,6 +285,13 @@ const ChatWidget: React.FC = () => {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    if (inputCtxRef.current) {
+      inputCtxRef.current.close();
+      inputCtxRef.current = null;
+    }
+    // Clear audio queue and stop playback
+    audioQueueRef.current = [];
+    isPlayingRef.current = false;
     setState(prev => ({ ...prev, isVoiceActive: false }));
   };
 
