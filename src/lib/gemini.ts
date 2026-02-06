@@ -187,10 +187,12 @@ export class GeminiService {
     }
 
     // Map language code to BCP-47 for speech synthesis
+    // Only include languages the audio model natively supports for TTS.
+    // Amharic and Tigrigna are NOT supported as BCP-47 languageCodes —
+    // setting them causes the model to produce zero output. For those
+    // languages, we rely on the system prompt instruction instead.
     const bcp47Map: Record<string, string> = {
       'en': 'en-US',
-      'am': 'am-ET',
-      'ti': 'ti-ET',
       'es': 'es-US',
     };
 
