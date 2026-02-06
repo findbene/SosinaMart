@@ -63,9 +63,11 @@ User confirmed voice quality is fixed but reported: (1) only English works for v
 
 #### 8. Fix multilingual voice chat
 - **Status:** COMPLETED
-- **Root cause:** `connectVoice()` in gemini.ts didn't accept or pass any language parameter — always used the default English system prompt
-- **Fix:** Added `language` param to `connectVoice()`, builds language-specific system instruction with a CRITICAL LANGUAGE REQUIREMENT directive, passes BCP-47 `languageCode` in `speechConfig`
-- **Languages mapped:** am → Amharic (am-ET), ti → Tigrigna (ti-ET), es → Spanish (es-US)
+- **Root cause 1:** `connectVoice()` didn't accept or pass any language parameter
+- **Root cause 2:** Setting `languageCode: 'am-ET'` or `'ti-ET'` in speechConfig caused the model to produce **zero output** — the BCP-47 codes for Amharic/Tigrigna are not supported by the native audio model
+- **Fix:** Added `language` param to `connectVoice()` with CRITICAL LANGUAGE REQUIREMENT in system prompt. Only set BCP-47 `languageCode` for supported languages (en-US, es-US). Amharic/Tigrigna rely on system prompt instruction alone.
+- **Tested:** All 4 languages produce audio — EN:161, AM:143, TI:86, ES:137 chunks
+- **Commits:** `ed1feed`, `1971e58`
 
 #### 9. Fix voice interruption (barge-in)
 - **Status:** COMPLETED
