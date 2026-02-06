@@ -1,6 +1,6 @@
 'use client';
 
-import { GoogleGenAI, Modality, Type, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "./constants";
 
 export function encode(bytes: Uint8Array) {
@@ -41,7 +41,7 @@ export async function decodeAudioData(
   return buffer;
 }
 
-const tools: { functionDeclarations: FunctionDeclaration[] }[] = [
+const tools: { functionDeclarations: any[] }[] = [
   {
     functionDeclarations: [
       {
