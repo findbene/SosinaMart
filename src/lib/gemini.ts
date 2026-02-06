@@ -109,7 +109,7 @@ export class GeminiService {
       console.log('[GeminiService] Sending request to Gemini...');
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents: [...history, { role: 'user', parts: [{ text: fullPrompt }] }],
         config: {
           systemInstruction: SYSTEM_PROMPT,

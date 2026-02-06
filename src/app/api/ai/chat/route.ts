@@ -51,7 +51,7 @@ async function serverChat(message: string, history: any[] = [], language: string
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [...history, { role: 'user', parts: [{ text: fullPrompt }] }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
