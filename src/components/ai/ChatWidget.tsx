@@ -35,8 +35,7 @@ const ChatWidget: React.FC = () => {
   const sessionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const outputCtxRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<AudioBuffer[]>([]);
-  const isPlayingRef = useRef(false);
+  const nextPlayTimeRef = useRef(0);
   const inputCtxRef = useRef<AudioContext | null>(null);
 
   // Check if API key is configured
@@ -133,32 +132,22 @@ const ChatWidget: React.FC = () => {
     }
   };
 
-  // Sequential audio playback — plays queued chunks one after another
-  const playNextInQueue = () => {
-    if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
-    const outCtx = outputCtxRef.current;
-    if (!outCtx) return;
-
-    isPlayingRef.current = true;
-    const buffer = audioQueueRef.current.shift()!;
-    const src = outCtx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(outCtx.destination);
-    src.onended = () => {
-      isPlayingRef.current = false;
-      playNextInQueue();
-    };
-    src.start();
-  };
-
-  const enqueueAudio = async (base64Data: string) => {
+  // Gapless audio playback — schedule each chunk to start exactly when the previous ends
+  const scheduleAudio = async (base64Data: string) => {
     if (!outputCtxRef.current) {
       outputCtxRef.current = new AudioContext({ sampleRate: 24000 });
     }
     const outCtx = outputCtxRef.current;
     const buffer = await decodeAudioData(decode(base64Data), outCtx, 24000, 1);
-    audioQueueRef.current.push(buffer);
-    playNextInQueue();
+    const src = outCtx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(outCtx.destination);
+
+    // Schedule this chunk right after the previous one ends (or now if nothing is playing)
+    const now = outCtx.currentTime;
+    const startTime = Math.max(now, nextPlayTimeRef.current);
+    src.start(startTime);
+    nextPlayTimeRef.current = startTime + buffer.duration;
   };
 
   const startVoiceSession = async () => {
@@ -182,9 +171,8 @@ const ChatWidget: React.FC = () => {
       if (!outputCtxRef.current) {
         outputCtxRef.current = new AudioContext({ sampleRate: 24000 });
       }
-      // Clear any leftover audio queue
-      audioQueueRef.current = [];
-      isPlayingRef.current = false;
+      // Reset playback schedule
+      nextPlayTimeRef.current = 0;
 
       // Input context for mic capture at 16kHz
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -219,13 +207,13 @@ const ChatWidget: React.FC = () => {
           setState(prev => ({ ...prev, isVoiceActive: true }));
         },
         onmessage: async (msg: any) => {
-          // Queue audio chunks for sequential playback
-          const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-          if (audio) {
-            enqueueAudio(audio);
+          // Schedule audio for gapless playback using SDK's data getter
+          const audioData = msg.data || msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          if (audioData) {
+            scheduleAudio(audioData);
           }
           // Handle text responses in voice mode
-          const textContent = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
+          const textContent = msg.text || msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text && !p.thought)?.text;
           if (textContent) {
             const assistantMsg: Message = {
               id: Date.now().toString(),
@@ -289,9 +277,12 @@ const ChatWidget: React.FC = () => {
       inputCtxRef.current.close();
       inputCtxRef.current = null;
     }
-    // Clear audio queue and stop playback
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
+    // Reset playback schedule and close output context to stop all audio
+    nextPlayTimeRef.current = 0;
+    if (outputCtxRef.current) {
+      outputCtxRef.current.close();
+      outputCtxRef.current = null;
+    }
     setState(prev => ({ ...prev, isVoiceActive: false }));
   };
 
