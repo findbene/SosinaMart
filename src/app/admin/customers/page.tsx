@@ -200,7 +200,30 @@ export default function AdminCustomersPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Segment Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'All', status: 'all', icon: '👥', color: 'from-gray-500 to-gray-600' },
+          { label: 'Active', status: 'active', icon: '🟢', color: 'from-green-500 to-green-600' },
+          { label: 'VIP', status: 'vip', icon: '⭐', color: 'from-amber-500 to-amber-600' },
+          { label: 'Inactive', status: 'inactive', icon: '💤', color: 'from-gray-400 to-gray-500' },
+        ].map(s => {
+          const count = s.status === 'all' ? customers.length : customers.filter(c => c.status === s.status).length;
+          return (
+            <button
+              key={s.status}
+              onClick={() => setStatusFilter(s.status)}
+              className={`p-4 rounded-xl border transition-all text-left ${statusFilter === s.status ? 'ring-2 ring-primary border-primary bg-primary/5' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="text-lg mb-1">{s.icon}</div>
+              <div className="text-2xl font-bold text-gray-900">{count}</div>
+              <div className="text-xs font-medium text-gray-500 mt-0.5">{s.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -212,16 +235,6 @@ export default function AdminCustomersPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="vip">VIP</option>
-        </select>
       </div>
 
       {/* Customers table */}

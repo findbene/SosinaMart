@@ -6,13 +6,15 @@ import { gemini, encode, decode, decodeAudioData } from '@/lib/gemini';
 import { searchKnowledge } from '@/lib/rag';
 import LanguageSelector from './LanguageSelector';
 import { useCart } from '@/context/CartContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { PRODUCTS } from '@/lib/data';
 import { LANGUAGE_LABELS } from '@/lib/constants';
 
-const KIDIST_AVATAR = "https://images.unsplash.com/photo-1523824921871-d6f1a15151f1?auto=format&fit=crop&q=80&w=400&h=400";
+const KIDIST_AVATAR = "/images/kidist.png";
 
 const ChatWidget: React.FC = () => {
   const { addToCart } = useCart();
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<ChatState>({
     messages: [
@@ -313,7 +315,7 @@ const ChatWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-5">
+    <div className={`fixed z-50 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-4 right-4 sm:bottom-6 sm:right-6'} flex flex-col items-end gap-3 sm:gap-5`}>
       {!isOpen ? (
         <div className="flex flex-col items-end group">
           {/* Bouncing Cloud Bubble */}
@@ -322,64 +324,63 @@ const ChatWidget: React.FC = () => {
               className="bg-white px-10 py-5 rounded-[2.5rem] border-2 border-amber-500 text-amber-900 text-[14px] font-black hidden md:block uppercase tracking-tight shadow-2xl mb-4 relative z-10"
               style={{ boxShadow: '0 -4px 15px rgba(0, 154, 68, 0.2), 0 0 25px rgba(254, 209, 0, 0.2), 0 4px 35px rgba(239, 51, 64, 0.2)' }}
             >
-              Ask Kidist: Your Support & Concierge
+              {t.chat.askKidist}
             </div>
             <div className="absolute bottom-[8px] right-10 w-8 h-8 bg-white border-r-2 border-b-2 border-amber-500 rotate-45 hidden md:block z-0"></div>
           </div>
 
-          {/* Ethiopian Flag Button */}
+          {/* Kidist Avatar Button */}
           <button
             onClick={() => setIsOpen(true)}
-            className="w-32 h-32 rounded-full flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 border-[8px] border-white relative overflow-hidden shadow-2xl"
+            className="group relative w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full transition-all transform hover:scale-110 active:scale-95"
           >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <pattern id="flag-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                  <rect x="0" y="0" width="100" height="33.3" fill="#009A44" />
-                  <rect x="0" y="33.3" width="100" height="33.4" fill="#FED100" />
-                  <rect x="0" y="66.7" width="100" height="33.3" fill="#EF3340" />
-                </pattern>
-              </defs>
-              <g className="animate-[flag-wave_2s_ease-in-out_infinite]">
-                <rect width="100" height="100" fill="url(#flag-pattern)" />
-              </g>
-            </svg>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-40 z-20"></div>
-            <div className="relative z-30">
-              <svg className="w-16 h-16 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+            {/* Ethiopian flag gradient ring with pulsing glow */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-600 via-yellow-400 to-red-600 p-[3px] sm:p-[4px] lg:p-[5px] animate-[pulse_3s_ease-in-out_infinite]">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-600 via-yellow-400 to-red-600 opacity-40 blur-md animate-[pulse_3s_ease-in-out_infinite]"></div>
             </div>
-            <style>{`
-              @keyframes flag-wave {
-                0%, 100% { transform: scale(1.4) skewX(-20deg) translateY(-3px); }
-                50% { transform: scale(1.4) skewX(20deg) translateY(3px); }
-              }
-            `}</style>
+
+            {/* White border */}
+            <div className="absolute inset-[3px] sm:inset-[4px] lg:inset-[5px] rounded-full bg-white p-[2px] sm:p-[3px] shadow-2xl">
+              {/* Kidist's photo */}
+              <img
+                src="/images/kidist.png"
+                alt="Kidist - Shopping Assistant"
+                className="w-full h-full rounded-full object-cover"
+              />
+            </div>
+
+            {/* Subtle overlay gradient for depth */}
+            <div className="absolute inset-[3px] sm:inset-[4px] lg:inset-[5px] rounded-full bg-gradient-to-tr from-transparent via-transparent to-white/20 pointer-events-none"></div>
           </button>
         </div>
       ) : (
         /* Chat Panel */
-        <div className="w-full sm:w-[540px] h-[860px] max-h-[96vh] bg-white rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden border ring-[15px] ring-amber-500/10 animate-in slide-in-from-bottom-12">
+        <div className="w-full h-full sm:w-[540px] sm:h-[860px] sm:max-h-[96vh] bg-white sm:rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden sm:border sm:ring-[15px] ring-amber-500/10 animate-in slide-in-from-bottom-12">
           {/* Header */}
-          <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 p-8 text-white flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-6">
-              <img src={KIDIST_AVATAR} className="w-20 h-20 rounded-full border-4 border-white object-cover" alt="Kidist" />
+          <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 p-4 sm:p-8 text-white flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3 sm:gap-6">
+              <div className="relative w-12 h-12 sm:w-20 sm:h-20 flex-shrink-0">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-500 via-yellow-400 to-red-500 p-[2px] sm:p-[3px]">
+                  <div className="w-full h-full rounded-full bg-white p-[1px] sm:p-[2px]">
+                    <img src={KIDIST_AVATAR} className="w-full h-full rounded-full object-cover" alt="Kidist" />
+                  </div>
+                </div>
+              </div>
               <div>
-                <h3 className="font-black text-2xl uppercase italic">Kidist</h3>
-                <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-bold tracking-widest">Support & Concierge</span>
+                <h3 className="font-black text-lg sm:text-2xl uppercase italic">Kidist</h3>
+                <span className="text-[9px] sm:text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-bold tracking-widest">{t.chat.supportConcierge}</span>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="bg-white text-amber-800 p-3 rounded-full shadow-lg hover:scale-110 transition-transform">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onClick={() => setIsOpen(false)} className="bg-white text-amber-800 p-2 sm:p-3 rounded-full shadow-lg hover:scale-110 transition-transform">
+              <svg className="w-5 h-5 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
           {/* Language Selector Bar */}
-          <div className="px-8 py-4 border-b flex justify-between items-center bg-amber-50/30">
-            <span className="text-[10px] font-black text-amber-900/40 uppercase tracking-widest">Language</span>
+          <div className="px-4 sm:px-8 py-3 sm:py-4 border-b flex justify-between items-center bg-amber-50/30">
+            <span className="text-[10px] font-black text-amber-900/40 uppercase tracking-widest">{t.chat.language}</span>
             <LanguageSelector
               currentLanguage={state.currentLanguage}
               onLanguageChange={(l) => setState(p => ({ ...p, currentLanguage: l }))}
@@ -387,10 +388,10 @@ const ChatWidget: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 bg-gray-50/50">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-6 bg-gray-50/50">
             {state.messages.map(m => (
               <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-6 rounded-[2rem] shadow-sm text-sm ${m.role === 'user' ? 'bg-amber-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-amber-100'}`}>
+                <div className={`max-w-[90%] sm:max-w-[85%] p-3 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm text-sm ${m.role === 'user' ? 'bg-amber-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-amber-100'}`}>
                   {m.content}
                 </div>
               </div>
@@ -409,21 +410,21 @@ const ChatWidget: React.FC = () => {
           </div>
 
           {/* Input Area */}
-          <div className="p-10 bg-white border-t space-y-5">
-            <div className="flex gap-4">
+          <div className="p-4 sm:p-10 bg-white border-t space-y-3 sm:space-y-5">
+            <div className="flex gap-2 sm:gap-4">
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend(input)}
-                className="flex-1 bg-gray-50 border-2 rounded-[1.5rem] px-6 py-4 focus:border-amber-600 outline-none text-gray-800"
-                placeholder="Talk to Kidist..."
+                className="flex-1 bg-gray-50 border-2 rounded-[1.5rem] px-4 sm:px-6 py-3 sm:py-4 focus:border-amber-600 outline-none text-gray-800 text-sm sm:text-base"
+                placeholder={t.chat.talkToKidist}
               />
               <button
                 onClick={() => handleSend(input)}
                 disabled={state.isProcessing || !input.trim()}
-                className="bg-amber-700 text-white rounded-[1.5rem] px-6 shadow-lg hover:bg-amber-800 transition-colors disabled:opacity-50"
+                className="bg-amber-700 text-white rounded-[1.5rem] px-4 sm:px-6 shadow-lg hover:bg-amber-800 transition-colors disabled:opacity-50"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
               </button>
@@ -432,7 +433,7 @@ const ChatWidget: React.FC = () => {
             {/* Voice Chat Button - GREEN when ready, RED when active */}
             <button
               onClick={state.isVoiceActive ? stopVoiceSession : startVoiceSession}
-              className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase border-4 transition-all flex items-center justify-center gap-3 ${
+              className={`w-full py-3 sm:py-5 rounded-[1.5rem] font-black text-xs sm:text-base tracking-widest uppercase border-4 transition-all flex items-center justify-center gap-2 sm:gap-3 ${
                 state.isVoiceActive
                   ? 'bg-red-600 text-white border-red-700 animate-pulse'
                   : 'bg-green-600 text-white border-green-700 hover:bg-green-700'
@@ -440,12 +441,12 @@ const ChatWidget: React.FC = () => {
             >
               {state.isVoiceActive ? (
                 <>
-                  <span className="w-4 h-4 bg-white rounded-full animate-ping"></span>
-                  <span>🎤 Voice Active - Tap to Hang Up</span>
+                  <span className="w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-full animate-ping"></span>
+                  <span>{t.chat.voiceActive}</span>
                 </>
               ) : (
                 <>
-                  <span>🎤 Start Voice Chat</span>
+                  <span>{t.chat.startVoice}</span>
                 </>
               )}
             </button>

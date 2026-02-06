@@ -5,6 +5,7 @@ import { X, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { db } from "@/lib/supabase";
 import { cn, formatPrice, generateOrderNumber, isValidEmail, isValidPhone } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ interface CheckoutModalProps {
 export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutModalProps) {
   const { items, cartTotal, clearCart } = useCart();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -34,20 +36,20 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = t.checkout.nameRequired;
     }
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = t.checkout.emailRequired;
     } else if (!isValidEmail(formData.email)) {
-      newErrors.email = "Invalid email format";
+      newErrors.email = t.checkout.emailInvalid;
     }
     if (!formData.phone.trim()) {
-      newErrors.phone = "Phone is required";
+      newErrors.phone = t.checkout.phoneRequired;
     } else if (!isValidPhone(formData.phone)) {
-      newErrors.phone = "Invalid phone format";
+      newErrors.phone = t.checkout.phoneInvalid;
     }
     if (!formData.address.trim()) {
-      newErrors.address = "Address is required";
+      newErrors.address = t.checkout.addressRequired;
     }
 
     setErrors(newErrors);
@@ -112,7 +114,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
       <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <Button
           variant="ghost"
@@ -128,29 +130,29 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
           <div className="p-8 text-center">
             <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Order Placed Successfully!
+              {t.checkout.orderSuccess}
             </h2>
             <p className="text-gray-600 mb-4">
-              Thank you for your order. We will contact you shortly to confirm your order details.
+              {t.checkout.orderSuccessMsg}
             </p>
             <div className="bg-gray-100 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-500">Order Number</p>
+              <p className="text-sm text-gray-500">{t.checkout.orderNumber}</p>
               <p className="text-xl font-bold text-primary">{orderNumber}</p>
             </div>
             <Button onClick={handleClose} className="w-full">
-              Continue Shopping
+              {t.cart.continueShopping}
             </Button>
           </div>
         ) : (
           /* Checkout Form */
-          <form onSubmit={handleSubmit} className="p-6">
-            <h2 className="text-2xl font-bold text-primary mb-6">Checkout</h2>
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+            <h2 className="text-2xl font-bold text-primary mb-6">{t.checkout.checkout}</h2>
 
             {/* Form Fields */}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Full Name *
+                  {t.checkout.fullName} *
                 </label>
                 <input
                   type="text"
@@ -169,7 +171,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Email *
+                  {t.checkout.email} *
                 </label>
                 <input
                   type="email"
@@ -188,7 +190,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Phone *
+                  {t.checkout.phone} *
                 </label>
                 <input
                   type="tel"
@@ -207,7 +209,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Delivery Address *
+                  {t.checkout.deliveryAddress} *
                 </label>
                 <textarea
                   value={formData.address}
@@ -226,21 +228,21 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Order Notes (Optional)
+                  {t.checkout.orderNotes}
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   rows={2}
-                  placeholder="Any special instructions..."
+                  placeholder={t.checkout.specialInstructions}
                 />
               </div>
             </div>
 
             {/* Order Summary */}
             <div className="mt-6 bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Order Summary</h3>
+              <h3 className="font-semibold mb-3">{t.checkout.orderSummary}</h3>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {items.map((item) => (
                   <div key={item.id} className="text-sm">
@@ -251,7 +253,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
                 ))}
               </div>
               <div className="border-t mt-3 pt-3 font-bold">
-                <span>{items.length} item(s) in order</span>
+                <span>{items.length} {t.checkout.itemsInOrder}</span>
               </div>
             </div>
 
@@ -265,10 +267,10 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Processing...
+                  {t.checkout.processing}
                 </>
               ) : (
-                "Place Order"
+                t.checkout.placeOrder
               )}
             </Button>
           </form>

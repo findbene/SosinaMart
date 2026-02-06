@@ -74,21 +74,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+          <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 bg-gradient-to-r from-primary to-primary-dark">
             <Link href="/admin" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-primary">Sosina</span>
-              <span className="text-sm font-medium text-gray-500">Admin</span>
+              <span className="text-xl font-bold text-white">Sosina</span>
+              <span className="text-xs font-medium text-white/70 bg-white/20 px-2 py-0.5 rounded-full">Admin</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+              className="lg:hidden p-2 rounded-md hover:bg-white/20 text-white"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
             {sidebarLinks.map((link) => {
               const isActive = pathname === link.href ||
                 (link.href !== '/admin' && pathname.startsWith(link.href));
@@ -99,14 +99,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
                     isActive
-                      ? 'bg-primary text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-primary/10 text-primary border-l-4 border-primary pl-2'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={cn('h-5 w-5', isActive ? 'text-primary' : 'text-gray-400')} />
                   {link.label}
                 </Link>
               );

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/products/ProductCard";
+import { useLanguage } from "@/context/LanguageContext";
 import { PRODUCTS } from "@/lib/data";
 import { cn, getCategoryDisplayName } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export default function AllProductsModal({
   onClose,
   initialCategory = "all",
 }: AllProductsModalProps) {
+  const { t } = useLanguage();
   const [activeCategory, setActiveCategory] = useState(initialCategory);
 
   useEffect(() => {
@@ -53,10 +55,10 @@ export default function AllProductsModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] mx-4 flex flex-col overflow-hidden animate-fade-in">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] mx-2 sm:mx-4 flex flex-col overflow-hidden animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-2xl font-semibold text-primary">All Products</h2>
+          <h2 className="text-2xl font-semibold text-primary">{t.products.allProducts}</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -80,7 +82,7 @@ export default function AllProductsModal({
                   : "bg-white text-gray-600 hover:bg-gray-100 border"
               )}
             >
-              {category === "all" ? "All Items" : getCategoryDisplayName(category)}
+              {category === "all" ? t.products.allItems : getCategoryDisplayName(category)}
             </button>
           ))}
         </div>
@@ -95,7 +97,7 @@ export default function AllProductsModal({
 
           {filteredProducts.length === 0 && (
             <div className="text-center py-12 text-gray-500">
-              No products found in this category.
+              {t.products.noProducts}
             </div>
           )}
         </div>

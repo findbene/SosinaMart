@@ -45,19 +45,25 @@ src/
 │   └── providers.tsx        # Context providers wrapper
 ├── components/
 │   ├── ai/                  # AI chat widget components
-│   │   ├── ChatWidget.tsx   # Main chat UI with Kidist persona
-│   │   └── LanguageSelector.tsx # Multilingual dropdown
-│   ├── checkout/            # Checkout modal
-│   ├── products/            # Product cards, grid
+│   │   ├── ChatWidget.tsx   # Main chat UI with Kidist persona (responsive)
+│   │   └── LanguageSelector.tsx # AI chat language dropdown
+│   ├── checkout/            # Checkout modal (responsive, i18n)
+│   ├── layout/
+│   │   ├── LanguageDropdown.tsx # Site-wide 4-language switcher
+│   │   ├── Navbar.tsx       # Main navigation (i18n)
+│   │   └── CartSidebar.tsx  # Cart sidebar (i18n)
+│   ├── products/            # Product cards, grid (responsive, i18n)
 │   └── ui/                  # Reusable UI components
 ├── context/
 │   ├── AuthContext.tsx      # Authentication state
 │   ├── CartContext.tsx      # Shopping cart state
 │   ├── ChatContext.tsx      # AI chat state (language, function calls)
+│   ├── LanguageContext.tsx  # Site-wide i18n state (locale + translations)
 │   └── ToastContext.tsx     # Toast notifications
 ├── lib/
 │   ├── gemini.ts            # Gemini AI service (Kidist persona)
 │   ├── rag.ts               # RAG service for knowledge retrieval
+│   ├── translations.ts     # i18n translation dictionary (en/am/ti/es)
 │   ├── api-error.ts         # API error handling
 │   ├── api-utils.ts         # API utilities & middleware
 │   ├── auth.ts              # NextAuth configuration
@@ -79,14 +85,16 @@ src/
 - Shopping cart with persistent state
 - Checkout flow with form validation
 - Order confirmation
+- **Responsive design**: Mobile-first layout across all pages (chat widget full-screen on mobile, adaptive grids, responsive typography)
 
 ### 2. Admin Dashboard (`/admin`)
-- **Dashboard:** Overview stats, recent orders, quick actions
-- **Orders:** List, filter, search, status updates, order details
-- **Customers:** CRM with customer profiles, order history, interactions
-- **Products:** Product management with category filtering
-- **Analytics:** Revenue charts, order breakdown, top products
+- **Dashboard:** Gradient welcome banner, overview stats, colored quick-action cards
+- **Orders:** Status summary cards (Pending/Processing/Shipped/Delivered/Cancelled) with click-to-filter, list view with search
+- **Customers:** Segment cards (All/Active/VIP/Inactive) with emoji icons and counts, customer profiles, order history
+- **Products:** Category summary cards with product/stock counts, product management with search
+- **Analytics:** Revenue charts with change % badges, order breakdown, top products, rounded-xl cards
 - **Settings:** Store configuration, notifications, security
+- **Sidebar:** Gradient header with "Admin" pill badge, active link states with left border accent
 
 ### 3. Customer Account (`/account`)
 - Order history
@@ -107,6 +115,14 @@ src/
 - **RAG Knowledge Base**: Context-aware responses using product catalog
 - **Cultural Knowledge**: Information about Ethiopian traditions and products
 - **Fallback Mode**: Works without API key with basic responses
+- **Responsive**: Full-screen on mobile, scaled button (w-16 to w-32 across breakpoints)
+
+### 6. Internationalization (i18n)
+- **4 languages**: English, Amharic (አማርኛ), Tigrigna (ትግርኛ), Spanish (Español)
+- **Language switcher**: Globe icon dropdown in navbar with flag emojis
+- **Persistent**: Locale saved to localStorage (`sosina-locale` key)
+- **Full coverage**: Navbar, hero, product cards, cart sidebar, checkout form/validation, chat widget, category titles
+- **Architecture**: `LanguageContext` provides `locale`, `setLocale`, `t` (translations object); `translations.ts` holds all strings
 
 ## Environment Variables
 
@@ -240,3 +256,7 @@ The app auto-deploys to Vercel on push to `main` branch.
 - **Languages supported**: English (en), Amharic (am), Tigrigna (ti), Spanish (es)
 - **Cart integration**: AI function calls are handled in `ChatContext.tsx`
 - **RAG knowledge base** is built from products and store info at runtime
+- **i18n architecture**: `translations.ts` uses `as const` with a `DeepString<T>` utility type to widen literal strings. `LanguageContext` wraps the app in `providers.tsx`. All storefront components import `useLanguage()` for translated strings.
+- **Responsive breakpoints**: Mobile-first Tailwind — `sm:` (640px), `md:` (768px), `lg:` (1024px), `xl:` (1280px). Chat widget uses conditional classes for full-screen mobile vs floating desktop panel.
+- **Admin summary cards**: Orders, Customers, and Products pages use clickable summary/filter cards at the top that set local filter state. These are client-side filters on already-fetched data.
+- **Test wrappers**: Components using `useLanguage()` must be wrapped in `<LanguageProvider>` in tests. See `ProductCard.test.tsx` and `checkout-flow.test.tsx` for examples.

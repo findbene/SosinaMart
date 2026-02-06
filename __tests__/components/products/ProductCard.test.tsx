@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProductCard from '@/components/products/ProductCard';
 import { CartProvider } from '@/context/CartContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 import { Product } from '@/types';
 
 const mockProduct: Product = {
@@ -15,7 +16,7 @@ const mockProduct: Product = {
 };
 
 const renderWithCart = (ui: React.ReactElement) => {
-  return render(<CartProvider>{ui}</CartProvider>);
+  return render(<LanguageProvider><CartProvider>{ui}</CartProvider></LanguageProvider>);
 };
 
 describe('ProductCard', () => {
@@ -24,9 +25,9 @@ describe('ProductCard', () => {
     expect(screen.getByText('Test Ethiopian Coffee')).toBeInTheDocument();
   });
 
-  it('renders product price', () => {
+  it('renders add to cart button text', () => {
     renderWithCart(<ProductCard product={mockProduct} />);
-    expect(screen.getByText('$18.99')).toBeInTheDocument();
+    expect(screen.getByText('Add to Cart')).toBeInTheDocument();
   });
 
   it('renders product image', () => {

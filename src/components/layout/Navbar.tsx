@@ -6,14 +6,17 @@ import Link from "next/link";
 import { ShoppingCart, Phone, Menu, X, User, LogOut, Settings, Package, LayoutDashboard, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { NAV_LINKS, STORE_INFO } from "@/lib/data";
 import { cn, formatPhoneForLink, scrollToElement } from "@/lib/utils";
 import CartSidebar from "@/components/layout/CartSidebar";
 import AllProductsModal from "@/components/products/AllProductsModal";
+import LanguageDropdown from "@/components/layout/LanguageDropdown";
 import { useSession, signOut } from "next-auth/react";
 
 export default function Navbar() {
   const { cartCount } = useCart();
+  const { t } = useLanguage();
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -87,20 +90,26 @@ export default function Navbar() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              {NAV_LINKS.map((link) => (
-                <button
-                  key={link.label}
-                  onClick={() => handleNavClick(link.category)}
-                  className="text-white font-medium hover:text-accent-gold transition-colors relative group"
-                >
-                  {link.label}
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-gold transition-all group-hover:w-full" />
-                </button>
-              ))}
+              {NAV_LINKS.map((link) => {
+                const navLabel = (t.nav as Record<string, string>)[link.category || ''] || link.label;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => handleNavClick(link.category)}
+                    className="text-white font-medium hover:text-accent-gold transition-colors relative group"
+                  >
+                    {navLabel}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-gold transition-all group-hover:w-full" />
+                  </button>
+                );
+              })}
             </div>
 
             {/* Right Side */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Language Dropdown */}
+              <LanguageDropdown />
+
               {/* Contact Button */}
               <Link
                 href={formatPhoneForLink(STORE_INFO.phone)}
@@ -108,7 +117,7 @@ export default function Navbar() {
               >
                 <Phone className="w-5 h-5" />
                 <span className="text-sm font-medium group-hover:hidden">
-                  Contact
+                  {t.nav.contact}
                 </span>
                 <span className="text-sm font-medium hidden group-hover:inline">
                   {STORE_INFO.phone}
@@ -155,7 +164,7 @@ export default function Navbar() {
                               onClick={() => setIsUserMenuOpen(false)}
                             >
                               <LayoutDashboard className="w-4 h-4" />
-                              Admin Dashboard
+                              {t.nav.adminDashboard}
                             </Link>
                             <div className="border-t my-1" />
                           </>
@@ -166,7 +175,7 @@ export default function Navbar() {
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <User className="w-4 h-4" />
-                          My Account
+                          {t.nav.myAccount}
                         </Link>
                         <Link
                           href="/account/orders"
@@ -174,7 +183,7 @@ export default function Navbar() {
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <Package className="w-4 h-4" />
-                          My Orders
+                          {t.nav.myOrders}
                         </Link>
                         <Link
                           href="/account/settings"
@@ -182,7 +191,7 @@ export default function Navbar() {
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <Settings className="w-4 h-4" />
-                          Settings
+                          {t.nav.settings}
                         </Link>
                         <div className="border-t my-1" />
                         <button
@@ -193,7 +202,7 @@ export default function Navbar() {
                           className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-gray-100 w-full"
                         >
                           <LogOut className="w-4 h-4" />
-                          Sign Out
+                          {t.nav.signOut}
                         </button>
                       </div>
                     )}
@@ -205,7 +214,7 @@ export default function Navbar() {
                       className="text-white hover:text-accent-gold hover:bg-white/10"
                     >
                       <User className="w-5 h-5 mr-1" />
-                      <span className="hidden sm:inline">Login</span>
+                      <span className="hidden sm:inline">{t.nav.login}</span>
                     </Button>
                   </Link>
                 )}
@@ -236,15 +245,18 @@ export default function Navbar() {
           )}
         >
           <div className="px-4 py-4 space-y-2 bg-primary-dark">
-            {NAV_LINKS.map((link) => (
-              <button
-                key={link.label}
-                onClick={() => handleNavClick(link.category)}
-                className="block w-full text-left text-white py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                {link.label}
-              </button>
-            ))}
+            {NAV_LINKS.map((link) => {
+              const navLabel = (t.nav as Record<string, string>)[link.category || ''] || link.label;
+              return (
+                <button
+                  key={link.label}
+                  onClick={() => handleNavClick(link.category)}
+                  className="block w-full text-left text-white py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  {navLabel}
+                </button>
+              );
+            })}
 
             {/* Mobile User Links */}
             {session ? (
@@ -257,7 +269,7 @@ export default function Navbar() {
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <LayoutDashboard className="w-5 h-5" />
-                    Admin Dashboard
+                    {t.nav.adminDashboard}
                   </Link>
                 )}
                 <Link
@@ -266,7 +278,7 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5" />
-                  My Account
+                  {t.nav.myAccount}
                 </Link>
                 <Link
                   href="/account/orders"
@@ -274,7 +286,7 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Package className="w-5 h-5" />
-                  My Orders
+                  {t.nav.myOrders}
                 </Link>
                 <button
                   onClick={() => {
@@ -284,7 +296,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 text-red-400 py-3 px-4 rounded-lg hover:bg-white/10 transition-colors w-full"
                 >
                   <LogOut className="w-5 h-5" />
-                  Sign Out
+                  {t.nav.signOut}
                 </button>
               </>
             ) : (
@@ -296,7 +308,7 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5" />
-                  Login / Register
+                  {t.nav.loginRegister}
                 </Link>
               </>
             )}
@@ -306,7 +318,7 @@ export default function Navbar() {
               className="block w-full text-center bg-accent-gold text-primary-dark py-3 px-4 rounded-lg font-semibold"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Call: {STORE_INFO.phone}
+              {t.common.call}: {STORE_INFO.phone}
             </Link>
           </div>
         </div>

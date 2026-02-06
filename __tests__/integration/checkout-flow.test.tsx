@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartProvider, useCart } from '@/context/CartContext';
 import { ToastContextProvider } from '@/context/ToastContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 import CheckoutModal from '@/components/checkout/CheckoutModal';
 import { Product } from '@/types';
 
@@ -37,9 +38,11 @@ function CartSetup({ onReady }: { onReady: () => void }) {
 import React from 'react';
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <ToastContextProvider>
-    <CartProvider>{children}</CartProvider>
-  </ToastContextProvider>
+  <LanguageProvider>
+    <ToastContextProvider>
+      <CartProvider>{children}</CartProvider>
+    </ToastContextProvider>
+  </LanguageProvider>
 );
 
 describe('Checkout Flow Integration', () => {
