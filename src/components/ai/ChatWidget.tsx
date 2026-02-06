@@ -37,6 +37,7 @@ const ChatWidget: React.FC = () => {
   const outputCtxRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef(0);
   const inputCtxRef = useRef<AudioContext | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
   // Check if API key is configured
   const apiKeyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -132,6 +133,15 @@ const ChatWidget: React.FC = () => {
     }
   };
 
+  // Cancel all queued/playing audio immediately (used for interruption and stop)
+  const cancelAudio = () => {
+    activeSourcesRef.current.forEach(src => {
+      try { src.stop(); } catch (e) { /* already stopped */ }
+    });
+    activeSourcesRef.current = [];
+    nextPlayTimeRef.current = 0;
+  };
+
   // Gapless audio playback — schedule each chunk to start exactly when the previous ends
   const scheduleAudio = async (base64Data: string) => {
     if (!outputCtxRef.current) {
@@ -148,6 +158,12 @@ const ChatWidget: React.FC = () => {
     const startTime = Math.max(now, nextPlayTimeRef.current);
     src.start(startTime);
     nextPlayTimeRef.current = startTime + buffer.duration;
+
+    // Track source for interruption cancellation
+    activeSourcesRef.current.push(src);
+    src.onended = () => {
+      activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== src);
+    };
   };
 
   const startVoiceSession = async () => {
@@ -178,11 +194,12 @@ const ChatWidget: React.FC = () => {
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       inputCtxRef.current = inputCtx;
 
-      const sessionPromise = gemini.connectVoice({
+      const sessionPromise = gemini.connectVoice(state.currentLanguage, {
         onopen: () => {
-          console.log('[ChatWidget] Voice session opened');
+          console.log('[ChatWidget] Voice session opened, language:', state.currentLanguage);
           const source = inputCtx.createMediaStreamSource(stream);
-          const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+          // Buffer size 2048 at 16kHz = 128ms latency (reduced from 256ms)
+          const processor = inputCtx.createScriptProcessor(2048, 1, 1);
           processor.onaudioprocess = (e: any) => {
             const float32 = e.inputBuffer.getChannelData(0);
             const int16 = new Int16Array(float32.length);
@@ -207,6 +224,14 @@ const ChatWidget: React.FC = () => {
           setState(prev => ({ ...prev, isVoiceActive: true }));
         },
         onmessage: async (msg: any) => {
+          // Check for interruption signal — user started speaking while model was talking
+          const interrupted = msg.serverContent?.interrupted;
+          if (interrupted) {
+            console.log('[ChatWidget] Model interrupted — cancelling queued audio');
+            cancelAudio();
+            return;
+          }
+
           // Schedule audio for gapless playback using SDK's data getter
           const audioData = msg.data || msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData) {
@@ -265,6 +290,8 @@ const ChatWidget: React.FC = () => {
 
   const stopVoiceSession = () => {
     console.log('[ChatWidget] Stopping voice session...');
+    // Immediately cancel all playing/scheduled audio
+    cancelAudio();
     if (sessionRef.current) {
       sessionRef.current.close();
       sessionRef.current = null;
@@ -277,8 +304,7 @@ const ChatWidget: React.FC = () => {
       inputCtxRef.current.close();
       inputCtxRef.current = null;
     }
-    // Reset playback schedule and close output context to stop all audio
-    nextPlayTimeRef.current = 0;
+    // Close output context to fully release audio resources
     if (outputCtxRef.current) {
       outputCtxRef.current.close();
       outputCtxRef.current = null;

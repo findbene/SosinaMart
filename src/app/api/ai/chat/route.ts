@@ -9,6 +9,7 @@ import {
   parseRequestBody,
 } from '@/lib/api-utils';
 import { sendChatMessageSchema, validate, formatZodErrors } from '@/lib/validations';
+import { logger } from '@/lib/logger';
 
 // Generate UUID
 function generateUUID(): string {
@@ -63,7 +64,7 @@ async function serverChat(message: string, history: any[] = [], language: string
       functionCalls: response.functionCalls
     };
   } catch (error) {
-    console.error('Gemini server chat error:', error);
+    logger.exception('ai', error, 'Gemini server chat');
     return {
       text: "I apologize, but I encountered an issue. Please try again.",
       functionCalls: null
@@ -113,9 +114,13 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         });
       } catch (dbError) {
-        console.error('Database error:', dbError);
+        logger.exception('database', dbError, 'Save chat message');
       }
     }
+
+    logger.apiRequest('POST', '/api/ai/chat', 200, {
+      details: { language, sessionId: currentSessionId },
+    });
 
     return createApiResponse({
       reply: response.text,
@@ -123,6 +128,7 @@ export async function POST(request: NextRequest) {
       functionCalls: response.functionCalls,
     });
   } catch (error) {
+    logger.exception('api', error, 'POST /api/ai/chat');
     return handleApiError(error);
   }
 }

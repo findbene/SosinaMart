@@ -49,11 +49,49 @@ User reported that Kidist (AI shopping concierge) was completely broken — retu
 - **Also:** Using SDK's `msg.data` getter instead of deep property traversal; filtering out `thought` parts
 - **Commit:** `bbc65b4`
 
-### Pending / To Verify
+#### 7. Voice audio quality confirmed
+- **Status:** COMPLETED — user confirmed "voice has been fixed and it sounds great"
 
-#### 7. Voice chat end-to-end verification
-- **Status:** PENDING — waiting for user to test on deployed Vercel site
-- **Blocker:** Need to confirm `NEXT_PUBLIC_GEMINI_API_KEY` is set in Vercel env vars and site redeployed
+---
+
+## Session: 2026-02-06 — Voice Languages, Interruption, Prices, Logging
+
+### Context
+User confirmed voice quality is fixed but reported: (1) only English works for voice — Tigrigna, Amharic, Spanish not responding in the correct language, (2) Kidist won't stop talking when user tries to interrupt — queues user input instead, (3) response delay, (4) wants prices removed from all products, (5) wants a comprehensive logging system.
+
+### Completed Tasks
+
+#### 8. Fix multilingual voice chat
+- **Status:** COMPLETED
+- **Root cause:** `connectVoice()` in gemini.ts didn't accept or pass any language parameter — always used the default English system prompt
+- **Fix:** Added `language` param to `connectVoice()`, builds language-specific system instruction with a CRITICAL LANGUAGE REQUIREMENT directive, passes BCP-47 `languageCode` in `speechConfig`
+- **Languages mapped:** am → Amharic (am-ET), ti → Tigrigna (ti-ET), es → Spanish (es-US)
+
+#### 9. Fix voice interruption (barge-in)
+- **Status:** COMPLETED
+- **Root cause:** `onmessage` handler had no interruption detection. Audio chunks were pre-scheduled via `AudioContext.currentTime` — even when the server stopped generating (user interrupts), already-buffered chunks kept playing to completion
+- **Fix:** Added `activeSourcesRef` to track all `AudioBufferSourceNode`s. Added `cancelAudio()` function that stops all active sources and resets the playback timeline. `onmessage` now checks `msg.serverContent?.interrupted` — when detected, calls `cancelAudio()` immediately. `stopVoiceSession()` also calls `cancelAudio()` before closing.
+
+#### 10. Reduce voice response delay
+- **Status:** COMPLETED
+- **Fix:** Reduced ScriptProcessor buffer from 4096 to 2048 samples at 16kHz — cuts mic-to-wire latency from 256ms to 128ms per chunk
+
+#### 11. Remove prices from all products
+- **Status:** COMPLETED
+- **Files modified:**
+  - `ProductCard.tsx` — removed `formatPrice(product.price)` display and unused import
+  - `CartSidebar.tsx` — removed individual item prices and cart total
+  - `CheckoutModal.tsx` — removed per-item prices and total, replaced with item count
+- **Kept intact:** Product images, names, descriptions, category badges, Add to Cart buttons
+
+#### 12. Add comprehensive logging system
+- **Status:** COMPLETED
+- **New files:**
+  - `src/lib/logger.ts` — server-side logger: JSON lines format, daily rotating files in `logs/`, levels (ERROR/WARN/INFO/DEBUG), categories (frontend/backend/database/api/security/cart/crm/ai/auth/middleware/general)
+  - `src/lib/client-logger.ts` — client-side logger: fire-and-forget POST to `/api/log`, same category/level API
+  - `src/app/api/log/route.ts` — API endpoint receives client logs and writes via server logger
+- **Integrated into:** `src/app/api/ai/chat/route.ts` (AI errors, DB errors, API request logging)
+- **`.gitignore`** — added `/logs/`
 
 ### Key Decisions
 - Used same API key for both `GEMINI_API_KEY` (server) and `NEXT_PUBLIC_GEMINI_API_KEY` (client)
@@ -68,9 +106,22 @@ User reported that Kidist (AI shopping concierge) was completely broken — retu
 | `NEXTAUTH_SECRET` | (any random 32+ char string) | User needs to confirm |
 | `NEXTAUTH_URL` | https://sosina-mart.vercel.app | User needs to confirm |
 
-### Files Modified This Session
+### Files Modified (Session 1)
 - `.env.local` — added 4 env vars (gitignored)
 - `src/app/api/ai/chat/route.ts` — model gemini-2.0-flash → gemini-2.5-flash
 - `src/lib/gemini.ts` — model updates, SDK import fix, voice model update
 - `src/components/ai/ChatWidget.tsx` — complete voice audio pipeline rewrite
 - `package.json` / `package-lock.json` — SDK upgrade 0.7.0 → 1.40.0
+
+### Files Modified (Session 2)
+- `src/lib/gemini.ts` — added language param to connectVoice, BCP-47 languageCode, language-specific system prompt
+- `src/components/ai/ChatWidget.tsx` — interruption handling, cancelAudio(), activeSourcesRef, reduced buffer, language pass-through
+- `src/components/products/ProductCard.tsx` — removed price display
+- `src/components/layout/CartSidebar.tsx` — removed item prices and cart total
+- `src/components/checkout/CheckoutModal.tsx` — removed prices from order summary
+- `src/lib/logger.ts` — NEW: server-side logging system
+- `src/lib/client-logger.ts` — NEW: client-side logging utility
+- `src/app/api/log/route.ts` — NEW: client log ingestion endpoint
+- `src/app/api/ai/chat/route.ts` — integrated logger
+- `.gitignore` — added /logs/
+- `.agentic/progress.md` — updated with session 2 tasks

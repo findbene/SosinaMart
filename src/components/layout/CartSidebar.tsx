@@ -80,10 +80,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     <h3 className="font-medium text-gray-900 truncate">
                       {item.name}
                     </h3>
-                    <p className="text-primary font-semibold mt-1">
-                      {formatPrice(item.price)}
-                    </p>
-
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2 mt-2">
                       <Button
@@ -125,13 +121,6 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
         {/* Footer */}
         <div className="border-t p-4 bg-gray-50">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-lg font-semibold">Total:</span>
-            <span className="text-2xl font-bold text-primary">
-              {formatPrice(cartTotal)}
-            </span>
-          </div>
-
           <Button
             variant="outline"
             className="w-full mb-2"

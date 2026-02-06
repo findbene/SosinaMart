@@ -4,7 +4,7 @@ import { Check, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { Product } from "@/types";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -44,10 +44,6 @@ export default function ProductCard({ product }: ProductCardProps) {
         <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-primary transition-colors">
           {product.name}
         </h3>
-
-        <p className="text-lg font-bold text-primary mb-4">
-          {formatPrice(product.price)}
-        </p>
 
         <Button
           variant={inCart ? "default" : "brown"}

@@ -243,17 +243,15 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
               <h3 className="font-semibold mb-3">Order Summary</h3>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
+                  <div key={item.id} className="text-sm">
                     <span>
                       {item.name} x {item.quantity}
                     </span>
-                    <span>{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t mt-3 pt-3 flex justify-between font-bold">
-                <span>Total:</span>
-                <span className="text-primary">{formatPrice(cartTotal)}</span>
+              <div className="border-t mt-3 pt-3 font-bold">
+                <span>{items.length} item(s) in order</span>
               </div>
             </div>
 

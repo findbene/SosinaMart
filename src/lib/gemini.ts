@@ -156,7 +156,7 @@ export class GeminiService {
     }
   }
 
-  connectVoice(callbacks: {
+  connectVoice(language: string, callbacks: {
     onopen?: () => void;
     onmessage?: (msg: any) => void;
     onclose?: () => void;
@@ -170,10 +170,30 @@ export class GeminiService {
       return Promise.reject(new Error('No API key configured'));
     }
 
-    console.log('[GeminiService] Connecting voice session...');
+    console.log('[GeminiService] Connecting voice session, language:', language);
     const ai = new GoogleGenAI({ apiKey });
 
-    // Build callbacks with required properties
+    // Build language-specific system instruction
+    const langNames: Record<string, string> = {
+      'am': 'Amharic (አማርኛ)',
+      'ti': 'Tigrigna (ትግርኛ)',
+      'es': 'Spanish (Español)',
+    };
+
+    let systemText = SYSTEM_PROMPT;
+    if (language && language !== 'en' && langNames[language]) {
+      const langName = langNames[language];
+      systemText += `\n\nCRITICAL LANGUAGE REQUIREMENT: You MUST speak and respond EXCLUSIVELY in ${langName}. Do NOT use English at all. Every single word of your response must be in ${langName}. If the user speaks to you, respond ONLY in ${langName}. This is absolutely non-negotiable.`;
+    }
+
+    // Map language code to BCP-47 for speech synthesis
+    const bcp47Map: Record<string, string> = {
+      'en': 'en-US',
+      'am': 'am-ET',
+      'ti': 'ti-ET',
+      'es': 'es-US',
+    };
+
     const liveCallbacks = {
       onopen: callbacks.onopen || (() => {}),
       onmessage: callbacks.onmessage || (() => {}),
@@ -186,10 +206,11 @@ export class GeminiService {
       callbacks: liveCallbacks,
       config: {
         responseModalities: [Modality.AUDIO],
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        systemInstruction: { parts: [{ text: systemText }] },
         tools: tools as any,
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          ...(bcp47Map[language] ? { languageCode: bcp47Map[language] } : {}),
         },
       },
     });
