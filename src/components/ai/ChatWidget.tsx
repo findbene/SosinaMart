@@ -10,7 +10,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { PRODUCTS } from '@/lib/data';
 import { LANGUAGE_LABELS } from '@/lib/constants';
 
-const KIDIST_AVATAR = "https://images.unsplash.com/photo-1523824921871-d6f1a15151f1?auto=format&fit=crop&q=80&w=400&h=400";
+const KIDIST_AVATAR = "/images/kidist.png";
 
 const ChatWidget: React.FC = () => {
   const { addToCart } = useCart();
@@ -329,35 +329,28 @@ const ChatWidget: React.FC = () => {
             <div className="absolute bottom-[8px] right-10 w-8 h-8 bg-white border-r-2 border-b-2 border-amber-500 rotate-45 hidden md:block z-0"></div>
           </div>
 
-          {/* Ethiopian Flag Button */}
+          {/* Kidist Avatar Button */}
           <button
             onClick={() => setIsOpen(true)}
-            className="w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 border-4 sm:border-[6px] lg:border-[8px] border-white relative overflow-hidden shadow-2xl"
+            className="group relative w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full transition-all transform hover:scale-110 active:scale-95"
           >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <pattern id="flag-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                  <rect x="0" y="0" width="100" height="33.3" fill="#009A44" />
-                  <rect x="0" y="33.3" width="100" height="33.4" fill="#FED100" />
-                  <rect x="0" y="66.7" width="100" height="33.3" fill="#EF3340" />
-                </pattern>
-              </defs>
-              <g className="animate-[flag-wave_2s_ease-in-out_infinite]">
-                <rect width="100" height="100" fill="url(#flag-pattern)" />
-              </g>
-            </svg>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-40 z-20"></div>
-            <div className="relative z-30">
-              <svg className="w-8 h-8 sm:w-12 sm:h-12 lg:w-16 lg:h-16 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+            {/* Ethiopian flag gradient ring with pulsing glow */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-600 via-yellow-400 to-red-600 p-[3px] sm:p-[4px] lg:p-[5px] animate-[pulse_3s_ease-in-out_infinite]">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-600 via-yellow-400 to-red-600 opacity-40 blur-md animate-[pulse_3s_ease-in-out_infinite]"></div>
             </div>
-            <style>{`
-              @keyframes flag-wave {
-                0%, 100% { transform: scale(1.4) skewX(-20deg) translateY(-3px); }
-                50% { transform: scale(1.4) skewX(20deg) translateY(3px); }
-              }
-            `}</style>
+
+            {/* White border */}
+            <div className="absolute inset-[3px] sm:inset-[4px] lg:inset-[5px] rounded-full bg-white p-[2px] sm:p-[3px] shadow-2xl">
+              {/* Kidist's photo */}
+              <img
+                src="/images/kidist.png"
+                alt="Kidist - Shopping Assistant"
+                className="w-full h-full rounded-full object-cover"
+              />
+            </div>
+
+            {/* Subtle overlay gradient for depth */}
+            <div className="absolute inset-[3px] sm:inset-[4px] lg:inset-[5px] rounded-full bg-gradient-to-tr from-transparent via-transparent to-white/20 pointer-events-none"></div>
           </button>
         </div>
       ) : (
@@ -366,7 +359,13 @@ const ChatWidget: React.FC = () => {
           {/* Header */}
           <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 p-4 sm:p-8 text-white flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3 sm:gap-6">
-              <img src={KIDIST_AVATAR} className="w-12 h-12 sm:w-20 sm:h-20 rounded-full border-2 sm:border-4 border-white object-cover" alt="Kidist" />
+              <div className="relative w-12 h-12 sm:w-20 sm:h-20 flex-shrink-0">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-500 via-yellow-400 to-red-500 p-[2px] sm:p-[3px]">
+                  <div className="w-full h-full rounded-full bg-white p-[1px] sm:p-[2px]">
+                    <img src={KIDIST_AVATAR} className="w-full h-full rounded-full object-cover" alt="Kidist" />
+                  </div>
+                </div>
+              </div>
               <div>
                 <h3 className="font-black text-lg sm:text-2xl uppercase italic">Kidist</h3>
                 <span className="text-[9px] sm:text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-bold tracking-widest">{t.chat.supportConcierge}</span>
