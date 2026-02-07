@@ -37,6 +37,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
       {/* Sidebar */}
       <div
+        data-testid="cart-sidebar"
         className={cn(
           "fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl transition-transform duration-300 flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
@@ -58,7 +59,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-4">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div data-testid="cart-empty" className="flex flex-col items-center justify-center h-full text-gray-500">
               <ShoppingBag className="w-16 h-16 mb-4 opacity-50" />
               <p className="text-lg font-medium">{t.cart.emptyCart}</p>
               <p className="text-sm mt-2">{t.cart.emptyCartSub}</p>
@@ -85,6 +86,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-2 mt-2">
                       <Button
+                        data-testid="decrease-quantity"
                         variant="outline"
                         size="icon"
                         className="w-8 h-8"
@@ -96,6 +98,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         {item.quantity}
                       </span>
                       <Button
+                        data-testid="increase-quantity"
                         variant="outline"
                         size="icon"
                         className="w-8 h-8"
@@ -108,6 +111,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
                   {/* Remove Button */}
                   <Button
+                    data-testid="remove-item"
                     variant="ghost"
                     size="icon"
                     className="text-red-500 hover:text-red-700 hover:bg-red-50"

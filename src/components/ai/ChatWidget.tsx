@@ -331,6 +331,7 @@ const ChatWidget: React.FC = () => {
 
           {/* Kidist Avatar Button */}
           <button
+            data-testid="chat-widget-button"
             onClick={() => setIsOpen(true)}
             className="group relative w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full transition-all transform hover:scale-110 active:scale-95"
           >
@@ -355,7 +356,7 @@ const ChatWidget: React.FC = () => {
         </div>
       ) : (
         /* Chat Panel */
-        <div className="w-full h-full sm:w-[540px] sm:h-[860px] sm:max-h-[96vh] bg-white sm:rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden sm:border sm:ring-[15px] ring-amber-500/10 animate-in slide-in-from-bottom-12">
+        <div data-testid="chat-panel" className="w-full h-full sm:w-[540px] sm:h-[860px] sm:max-h-[96vh] bg-white sm:rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden sm:border sm:ring-[15px] ring-amber-500/10 animate-in slide-in-from-bottom-12">
           {/* Header */}
           <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 p-4 sm:p-8 text-white flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3 sm:gap-6">
@@ -413,6 +414,7 @@ const ChatWidget: React.FC = () => {
           <div className="p-4 sm:p-10 bg-white border-t space-y-3 sm:space-y-5">
             <div className="flex gap-2 sm:gap-4">
               <input
+                data-testid="chat-input"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend(input)}
@@ -420,6 +422,7 @@ const ChatWidget: React.FC = () => {
                 placeholder={t.chat.talkToKidist}
               />
               <button
+                data-testid="chat-send"
                 onClick={() => handleSend(input)}
                 disabled={state.isProcessing || !input.trim()}
                 className="bg-amber-700 text-white rounded-[1.5rem] px-4 sm:px-6 shadow-lg hover:bg-amber-800 transition-colors disabled:opacity-50"

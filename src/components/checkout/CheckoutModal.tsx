@@ -114,7 +114,7 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
       <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
+      <div data-testid="checkout-modal" className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <Button
           variant="ghost"
