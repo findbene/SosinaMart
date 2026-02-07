@@ -21,7 +21,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-all duration-300 group flex flex-col">
+    <div data-testid="product-card" className="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-all duration-300 group flex flex-col">
       {/* Product Image */}
       <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img

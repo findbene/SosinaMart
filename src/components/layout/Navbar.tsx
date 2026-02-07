@@ -126,6 +126,7 @@ export default function Navbar() {
 
               {/* Cart Button */}
               <Button
+                data-testid="cart-button"
                 variant="ghost"
                 size="icon"
                 className="relative text-white hover:text-accent-gold hover:bg-white/10"
@@ -133,7 +134,7 @@ export default function Navbar() {
               >
                 <ShoppingCart className="w-6 h-6" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-gold text-primary-dark text-xs font-bold rounded-full flex items-center justify-center">
+                  <span data-testid="cart-count" className="absolute -top-1 -right-1 w-5 h-5 bg-accent-gold text-primary-dark text-xs font-bold rounded-full flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -222,6 +223,7 @@ export default function Navbar() {
 
               {/* Mobile Menu Button */}
               <Button
+                data-testid="mobile-menu-button"
                 variant="ghost"
                 size="icon"
                 className="md:hidden text-white hover:bg-white/10"
