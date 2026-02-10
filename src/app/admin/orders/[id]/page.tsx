@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { OrderStatusBadge } from '@/components/ui/badge';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/lib/utils';
+import { Breadcrumb } from '@/components/admin/Breadcrumb';
 
 interface OrderItem {
   id: string;
@@ -161,6 +162,12 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Orders', href: '/admin/orders' },
+        { label: order.orderNumber },
+      ]} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

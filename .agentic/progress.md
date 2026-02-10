@@ -259,3 +259,99 @@ User requested implementation of 3 previously-planned tasks (13, 14, 15) that ha
 ### Build & Test Results
 - Build: ✅ Compiled successfully
 - Tests: ✅ 180 passing, 12 suites, 0 failures
+
+---
+
+## Session: 2026-02-09 — CRM Overhaul Phase 1 & Phase 3
+
+### Context
+Continuing enterprise CRM overhaul (Workstream 4). Plan was approved in a previous session with execution order: Phase 1 → Phase 3 → Phase 4 → Phase 2 → Phase 5.
+
+### Phase 1: Data Layer Foundation — COMPLETED
+All 8 tasks completed. Replaced hardcoded mock data across all admin pages with centralized data hooks that fetch from real APIs with fallback to mock data.
+
+#### Files Created
+- `src/hooks/useAdminData.ts` — Central data hooks (useOrders, useCustomers, useCustomer, useDashboardStats, useAnalytics, useProducts), types, transforms, mock data
+- `src/app/api/admin/analytics/route.ts` — Server-side analytics aggregation endpoint
+
+#### Files Modified
+- `src/app/admin/page.tsx` — Dashboard wired to useDashboardStats + useOrders hooks
+- `src/app/admin/orders/page.tsx` — Wired to useOrders hook
+- `src/app/admin/customers/page.tsx` — Wired to useCustomers hook
+- `src/app/admin/customers/[id]/page.tsx` — Wired to useCustomer hook + submitInteraction
+- `src/app/admin/analytics/page.tsx` — Wired to useAnalytics hook
+- `src/app/admin/settings/page.tsx` — localStorage persistence for store + notification settings
+
+### Phase 3: Customer Health Scoring & Segmentation — COMPLETED
+All 6 tasks completed. RFM-based health scoring, visual components, and segment builder.
+
+#### Files Created
+- `src/lib/customer-health.ts` — RFM scoring algorithm (Recency/Frequency/Monetary), health labels (Champion/Loyal/Promising/At Risk/Lost), churn prediction, recommended actions
+- `src/components/admin/HealthScoreBadge.tsx` — HealthScoreBadge (circular ring), HealthLabelBadge (pill), RFMBreakdown (bar chart), ChurnRiskIndicator
+- `src/components/admin/SegmentBuilder.tsx` — Visual segment builder with rules UI, preset segments (VIP, Champions, At Risk, Repeat Buyers, New, High Value)
+- `supabase/migrations/003_health_scores.sql` — DB migration adding health_score, health_label, churn_risk columns + trigger for auto-recalculation on order changes
+
+#### Files Modified
+- `src/app/admin/customers/page.tsx` — Added health score column to table (sortable), health distribution filter bar, health-based filtering
+- `src/app/admin/customers/[id]/page.tsx` — Added health label badge to header, new "Health & Insights" tab with: HealthScoreBadge (lg), RFM breakdown, churn risk indicator, recommended actions
+
+### Build & Test Results
+- Type check: ✅ Zero source code errors (only pre-existing test type issues)
+- Build: ✅ Compiled successfully
+
+### Phase 4: AI-Powered CRM Features — COMPLETED
+All 6 tasks completed. Gemini 2.5 Flash integration for admin intelligence.
+
+#### Files Created
+- `src/lib/ai-crm.ts` — AI CRM service: generateCustomerInsight, answerNaturalLanguageQuery, generateSmartAlerts with fallback alerts
+- `src/app/api/admin/ai/route.ts` — POST endpoint for AI queries/insights/alerts with rate limiting (20/hr)
+- `src/components/admin/NLQueryBar.tsx` — Search bar with suggestion chips and result display
+- `src/components/admin/SmartAlerts.tsx` — Dismissable AI-generated alert cards
+
+#### Files Modified
+- `src/app/admin/page.tsx` — Added NLQueryBar and SmartAlerts to Dashboard
+- `src/app/admin/customers/[id]/page.tsx` — Added "AI Insights" tab with on-demand AI analysis
+
+### Build & Test Results (Phase 4)
+- Type check: Zero source code errors
+- Build: Compiled successfully
+
+### Phase 2: Interactive Charts (Recharts) — COMPLETED
+All 3 tasks completed. Replaced CSS-based charts with interactive Recharts components.
+
+#### Files Created
+- `src/components/admin/charts/RevenueChart.tsx` — Area chart with gradient fill, custom tooltip, formatted Y-axis
+- `src/components/admin/charts/OrdersChart.tsx` — Bar chart with per-status color coding
+- `src/components/admin/charts/CategoryPieChart.tsx` — Donut chart with hover interactions and legend
+- `src/components/admin/charts/SparklineCard.tsx` — Mini sparkline stat card with trend indicator
+- `src/components/admin/charts/index.ts` — Barrel export
+
+#### Files Modified
+- `src/app/admin/analytics/page.tsx` — Replaced CSS bar chart with RevenueChart, CSS progress bars with OrdersChart, text list with CategoryPieChart, added export button
+- `src/app/admin/page.tsx` — Added RevenueChart between stats grid and orders table
+
+### Phase 5: Activity Timeline & Enhanced UI — COMPLETED
+All 3 tasks completed. Activity timeline, CSV exports, and breadcrumb navigation.
+
+#### Files Created
+- `src/components/admin/ActivityTimeline.tsx` — Vertical timeline with typed event icons (note/email/call/order/signup/status_change), relative timestamps, metadata
+- `src/lib/export.ts` — Generic CSV export utility with BOM for Excel compatibility
+- `src/components/admin/Breadcrumb.tsx` — Breadcrumb nav with Home icon and chevron separators
+
+#### Files Modified
+- `src/app/admin/customers/[id]/page.tsx` — Replaced plain interactions list with ActivityTimeline, added breadcrumb
+- `src/app/admin/orders/[id]/page.tsx` — Added breadcrumb
+- `src/app/admin/orders/page.tsx` — Wired Export button to exportToCsv
+- `src/app/admin/customers/page.tsx` — Wired Export button to exportToCsv with health data
+- `src/app/admin/analytics/page.tsx` — Added Export button for revenue data
+
+### Build & Test Results (Phase 2 + 5)
+- Type check: Zero source code errors
+- Build: Compiled successfully
+
+### All Phases Complete
+- Phase 1: Data Layer Foundation — DONE
+- Phase 2: Interactive Charts — DONE
+- Phase 3: Health Scoring — DONE
+- Phase 4: AI CRM — DONE
+- Phase 5: Activity Timeline & UI Polish — DONE
