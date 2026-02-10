@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
   ShoppingCart,
@@ -9,106 +9,22 @@ import {
   Package,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
 } from 'lucide-react';
 import { StatCard } from '@/components/ui/card';
 import { OrderStatusBadge } from '@/components/ui/badge';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { formatPrice } from '@/lib/utils';
-
-interface DashboardStats {
-  totalOrders: number;
-  totalRevenue: number;
-  totalCustomers: number;
-  totalProducts: number;
-  ordersChange: number;
-  revenueChange: number;
-  customersChange: number;
-}
-
-interface RecentOrder {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  total: number;
-  status: string;
-  createdAt: string;
-}
+import { useDashboardStats, useOrders, useAnalytics } from '@/hooks/useAdminData';
+import { NLQueryBar } from '@/components/admin/NLQueryBar';
+import { SmartAlerts } from '@/components/admin/SmartAlerts';
+import { RevenueChart } from '@/components/admin/charts';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: recentOrders, isLoading: ordersLoading } = useOrders({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' });
+  const { data: analytics, isLoading: analyticsLoading } = useAnalytics('30d');
 
-  useEffect(() => {
-    // Simulate fetching dashboard data
-    const fetchDashboardData = async () => {
-      try {
-        // In production, this would fetch from your API
-        // For now, using mock data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        setStats({
-          totalOrders: 156,
-          totalRevenue: 12450.00,
-          totalCustomers: 89,
-          totalProducts: 45,
-          ordersChange: 12.5,
-          revenueChange: 8.3,
-          customersChange: 15.2,
-        });
-
-        setRecentOrders([
-          {
-            id: '1',
-            orderNumber: 'SM-2024-001',
-            customerName: 'Abebe Kebede',
-            total: 89.99,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            orderNumber: 'SM-2024-002',
-            customerName: 'Sara Hailu',
-            total: 156.50,
-            status: 'processing',
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: '3',
-            orderNumber: 'SM-2024-003',
-            customerName: 'Dawit Mengistu',
-            total: 245.00,
-            status: 'shipped',
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-          },
-          {
-            id: '4',
-            orderNumber: 'SM-2024-004',
-            customerName: 'Tigist Alemu',
-            total: 78.25,
-            status: 'delivered',
-            createdAt: new Date(Date.now() - 259200000).toISOString(),
-          },
-          {
-            id: '5',
-            orderNumber: 'SM-2024-005',
-            customerName: 'Yonas Bekele',
-            total: 312.75,
-            status: 'pending',
-            createdAt: new Date(Date.now() - 345600000).toISOString(),
-          },
-        ]);
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
+  const isLoading = statsLoading || ordersLoading;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -127,6 +43,12 @@ export default function AdminDashboard() {
         <p className="text-white/80 mt-1">Here&apos;s what&apos;s happening with your store today.</p>
       </div>
 
+      {/* AI Query Bar */}
+      <NLQueryBar />
+
+      {/* Smart Alerts */}
+      <SmartAlerts />
+
       {/* Stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -137,7 +59,7 @@ export default function AdminDashboard() {
             value: stats.ordersChange,
             label: 'vs last month',
           } : undefined}
-          loading={isLoading}
+          loading={statsLoading}
         />
         <StatCard
           title="Total Revenue"
@@ -147,7 +69,7 @@ export default function AdminDashboard() {
             value: stats.revenueChange,
             label: 'vs last month',
           } : undefined}
-          loading={isLoading}
+          loading={statsLoading}
         />
         <StatCard
           title="Customers"
@@ -157,14 +79,35 @@ export default function AdminDashboard() {
             value: stats.customersChange,
             label: 'vs last month',
           } : undefined}
-          loading={isLoading}
+          loading={statsLoading}
         />
         <StatCard
           title="Products"
           value={stats?.totalProducts ?? 0}
           icon={<Package className="h-5 w-5" />}
-          loading={isLoading}
+          loading={statsLoading}
         />
+      </div>
+
+      {/* Revenue trend mini chart */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Revenue Trend</h2>
+          <Link
+            href="/admin/analytics"
+            className="text-sm text-primary hover:text-primary-dark font-medium flex items-center gap-1"
+          >
+            Full analytics
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </div>
+        {analyticsLoading ? (
+          <div className="h-[200px] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <RevenueChart data={analytics?.revenue.monthly ?? []} height={200} />
+        )}
       </div>
 
       {/* Recent orders */}
@@ -180,7 +123,7 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {ordersLoading ? (
           <TableSkeleton rows={5} columns={5} />
         ) : (
           <div className="overflow-x-auto">
@@ -205,7 +148,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {recentOrders.map((order) => (
+                {recentOrders?.slice(0, 5).map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <Link

@@ -1,101 +1,45 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Filter, Download, Eye, Mail } from 'lucide-react';
+import { Search, Download, Eye, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CustomerStatusBadge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { UserAvatar } from '@/components/ui/avatar';
 import { formatPrice } from '@/lib/utils';
+import { useCustomers, type AdminCustomer } from '@/hooks/useAdminData';
+import { calculateHealthScore, getHealthDistribution, getLabelBgColor, type HealthScore, type HealthLabel } from '@/lib/customer-health';
+import { HealthScoreBadge, HealthLabelBadge } from '@/components/admin/HealthScoreBadge';
+import { exportToCsv } from '@/lib/export';
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  status: 'active' | 'inactive' | 'vip';
-  totalOrders: number;
-  totalSpent: number;
-  lastOrderAt: string | null;
-  createdAt: string;
-}
+type CustomerWithHealth = AdminCustomer & { healthScore: number };
 
 export default function AdminCustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [healthFilter, setHealthFilter] = useState<string>('all');
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 800));
+  const { data: customers, isLoading } = useCustomers();
 
-        setCustomers([
-          {
-            id: '1',
-            name: 'Abebe Kebede',
-            email: 'abebe@example.com',
-            phone: '+1 470-359-7924',
-            status: 'vip',
-            totalOrders: 12,
-            totalSpent: 1245.50,
-            lastOrderAt: new Date().toISOString(),
-            createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '2',
-            name: 'Sara Hailu',
-            email: 'sara@example.com',
-            phone: '+1 404-555-0123',
-            status: 'active',
-            totalOrders: 5,
-            totalSpent: 456.25,
-            lastOrderAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '3',
-            name: 'Dawit Mengistu',
-            email: 'dawit@example.com',
-            status: 'active',
-            totalOrders: 3,
-            totalSpent: 189.00,
-            lastOrderAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-            createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '4',
-            name: 'Tigist Alemu',
-            email: 'tigist@example.com',
-            phone: '+1 678-555-0456',
-            status: 'inactive',
-            totalOrders: 1,
-            totalSpent: 78.25,
-            lastOrderAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-            createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '5',
-            name: 'Yonas Bekele',
-            email: 'yonas@example.com',
-            status: 'vip',
-            totalOrders: 8,
-            totalSpent: 892.50,
-            lastOrderAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            createdAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        ]);
-      } catch (error) {
-        console.error('Failed to fetch customers:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Compute health scores for all customers
+  const healthMap = useMemo(() => {
+    const map = new Map<string, HealthScore>();
+    for (const c of customers ?? []) {
+      map.set(c.id, calculateHealthScore({
+        totalOrders: c.totalOrders,
+        totalSpent: c.totalSpent,
+        lastOrderAt: c.lastOrderAt,
+        customerSince: c.customerSince,
+        averageOrderValue: c.averageOrderValue,
+      }));
+    }
+    return map;
+  }, [customers]);
 
-    fetchCustomers();
-  }, []);
+  const healthDistribution = useMemo(() => {
+    return getHealthDistribution(Array.from(healthMap.values()));
+  }, [healthMap]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
@@ -106,22 +50,43 @@ export default function AdminCustomersPage() {
     });
   };
 
-  const filteredCustomers = customers.filter((customer) => {
+  // Enrich customers with healthScore for sortable table
+  const enrichedCustomers: CustomerWithHealth[] = useMemo(() => {
+    return (customers ?? []).map(c => ({
+      ...c,
+      healthScore: healthMap.get(c.id)?.score ?? 0,
+    }));
+  }, [customers, healthMap]);
+
+  const filteredCustomers = enrichedCustomers.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'vip' ? customer.totalSpent >= 500 : customer.status === statusFilter);
 
-    return matchesSearch && matchesStatus;
+    const health = healthMap.get(customer.id);
+    const matchesHealth =
+      healthFilter === 'all' ||
+      health?.label === healthFilter;
+
+    return matchesSearch && matchesStatus && matchesHealth;
   });
+
+  const getSegmentCount = (segment: string) => {
+    if (segment === 'all') return (customers ?? []).length;
+    if (segment === 'vip') return (customers ?? []).filter(c => c.totalSpent >= 500).length;
+    return (customers ?? []).filter(c => c.status === segment).length;
+  };
 
   const columns = [
     {
-      key: 'name' as keyof Customer,
+      key: 'name' as keyof CustomerWithHealth,
       header: 'Customer',
       sortable: true,
-      render: (customer: Customer) => (
+      render: (customer: CustomerWithHealth) => (
         <div className="flex items-center gap-3">
           <UserAvatar name={customer.name} size="sm" />
           <div>
@@ -137,39 +102,54 @@ export default function AdminCustomersPage() {
       ),
     },
     {
-      key: 'status' as keyof Customer,
-      header: 'Status',
+      key: 'healthScore' as keyof CustomerWithHealth,
+      header: 'Health',
       sortable: true,
-      render: (customer: Customer) => <CustomerStatusBadge status={customer.status} />,
+      render: (customer: CustomerWithHealth) => {
+        const health = healthMap.get(customer.id);
+        if (!health) return null;
+        return (
+          <div className="flex items-center gap-2">
+            <HealthScoreBadge health={health} size="sm" showLabel={false} />
+            <HealthLabelBadge label={health.label} size="sm" />
+          </div>
+        );
+      },
     },
     {
-      key: 'totalOrders' as keyof Customer,
+      key: 'status' as keyof CustomerWithHealth,
+      header: 'Status',
+      sortable: true,
+      render: (customer: CustomerWithHealth) => <CustomerStatusBadge status={customer.status} />,
+    },
+    {
+      key: 'totalOrders' as keyof CustomerWithHealth,
       header: 'Orders',
       sortable: true,
-      render: (customer: Customer) => (
+      render: (customer: CustomerWithHealth) => (
         <span className="text-gray-900">{customer.totalOrders}</span>
       ),
     },
     {
-      key: 'totalSpent' as keyof Customer,
+      key: 'totalSpent' as keyof CustomerWithHealth,
       header: 'Total Spent',
       sortable: true,
-      render: (customer: Customer) => (
+      render: (customer: CustomerWithHealth) => (
         <span className="font-medium">{formatPrice(customer.totalSpent)}</span>
       ),
     },
     {
-      key: 'lastOrderAt' as keyof Customer,
+      key: 'lastOrderAt' as keyof CustomerWithHealth,
       header: 'Last Order',
       sortable: true,
-      render: (customer: Customer) => (
+      render: (customer: CustomerWithHealth) => (
         <span className="text-gray-500">{formatDate(customer.lastOrderAt)}</span>
       ),
     },
     {
-      key: 'id' as keyof Customer,
+      key: 'id' as keyof CustomerWithHealth,
       header: '',
-      render: (customer: Customer) => (
+      render: (customer: CustomerWithHealth) => (
         <div className="flex items-center gap-1">
           <Link href={`mailto:${customer.email}`}>
             <Button variant="ghost" size="sm">
@@ -186,6 +166,8 @@ export default function AdminCustomersPage() {
     },
   ];
 
+  const HEALTH_LABELS: HealthLabel[] = ['Champion', 'Loyal', 'Promising', 'At Risk', 'Lost'];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -194,7 +176,22 @@ export default function AdminCustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-600">Manage your customer relationships</p>
         </div>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={() => exportToCsv(filteredCustomers, [
+            { header: 'Name', accessor: (c) => c.name },
+            { header: 'Email', accessor: (c) => c.email },
+            { header: 'Phone', accessor: (c) => c.phone || '' },
+            { header: 'Status', accessor: (c) => c.status },
+            { header: 'Health Score', accessor: (c) => c.healthScore },
+            { header: 'Health Label', accessor: (c) => healthMap.get(c.id)?.label || '' },
+            { header: 'Total Orders', accessor: (c) => c.totalOrders },
+            { header: 'Total Spent', accessor: (c) => c.totalSpent },
+            { header: 'Avg Order Value', accessor: (c) => c.averageOrderValue },
+            { header: 'Last Order', accessor: (c) => formatDate(c.lastOrderAt) },
+            { header: 'Customer Since', accessor: (c) => formatDate(c.customerSince) },
+          ], `customers-export-${new Date().toISOString().slice(0, 10)}`)}
+        >
           <Download className="h-4 w-4 mr-2" />
           Export
         </Button>
@@ -203,25 +200,54 @@ export default function AdminCustomersPage() {
       {/* Segment Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'All', status: 'all', icon: '👥', color: 'from-gray-500 to-gray-600' },
-          { label: 'Active', status: 'active', icon: '🟢', color: 'from-green-500 to-green-600' },
-          { label: 'VIP', status: 'vip', icon: '⭐', color: 'from-amber-500 to-amber-600' },
-          { label: 'Inactive', status: 'inactive', icon: '💤', color: 'from-gray-400 to-gray-500' },
-        ].map(s => {
-          const count = s.status === 'all' ? customers.length : customers.filter(c => c.status === s.status).length;
-          return (
-            <button
-              key={s.status}
-              onClick={() => setStatusFilter(s.status)}
-              className={`p-4 rounded-xl border transition-all text-left ${statusFilter === s.status ? 'ring-2 ring-primary border-primary bg-primary/5' : 'bg-white border-gray-200 hover:border-gray-300'}`}
-            >
-              <div className="text-lg mb-1">{s.icon}</div>
-              <div className="text-2xl font-bold text-gray-900">{count}</div>
-              <div className="text-xs font-medium text-gray-500 mt-0.5">{s.label}</div>
-            </button>
-          );
-        })}
+          { label: 'All', status: 'all', icon: '\uD83D\uDC65', color: 'from-gray-500 to-gray-600' },
+          { label: 'Active', status: 'active', icon: '\uD83D\uDFE2', color: 'from-green-500 to-green-600' },
+          { label: 'VIP', status: 'vip', icon: '\u2B50', color: 'from-amber-500 to-amber-600' },
+          { label: 'Inactive', status: 'inactive', icon: '\uD83D\uDCA4', color: 'from-gray-400 to-gray-500' },
+        ].map(s => (
+          <button
+            key={s.status}
+            onClick={() => { setStatusFilter(s.status); setHealthFilter('all'); }}
+            className={`p-4 rounded-xl border transition-all text-left ${statusFilter === s.status && healthFilter === 'all' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+          >
+            <div className="text-lg mb-1">{s.icon}</div>
+            <div className="text-2xl font-bold text-gray-900">{getSegmentCount(s.status)}</div>
+            <div className="text-xs font-medium text-gray-500 mt-0.5">{s.label}</div>
+          </button>
+        ))}
       </div>
+
+      {/* Health Distribution */}
+      {!isLoading && (customers ?? []).length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Health Distribution</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => { setHealthFilter('all'); setStatusFilter('all'); }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                healthFilter === 'all' ? 'ring-2 ring-primary bg-gray-100 text-gray-900' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              All ({(customers ?? []).length})
+            </button>
+            {HEALTH_LABELS.map(label => {
+              const count = healthDistribution[label];
+              if (count === 0) return null;
+              return (
+                <button
+                  key={label}
+                  onClick={() => { setHealthFilter(label); setStatusFilter('all'); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    healthFilter === label ? 'ring-2 ring-primary ' + getLabelBgColor(label) : getLabelBgColor(label) + ' opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">

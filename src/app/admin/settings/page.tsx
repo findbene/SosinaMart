@@ -10,28 +10,46 @@ export default function AdminSettingsPage() {
   const { success, error } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const [storeSettings, setStoreSettings] = useState({
-    storeName: 'Sosina Mart',
-    storeEmail: 'info@sosinamart.com',
-    storePhone: '(470) 359-7924',
-    storeAddress: '2880 Lawrenceville Hwy, Tucker, GA 30084',
-    currency: 'USD',
-    timezone: 'America/New_York',
+  const [storeSettings, setStoreSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sosina-admin-store-settings');
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      storeName: 'Sosina Mart',
+      storeEmail: 'info@sosinamart.com',
+      storePhone: '(470) 359-7924',
+      storeAddress: '2880 Lawrenceville Hwy, Tucker, GA 30084',
+      currency: 'USD',
+      timezone: 'America/New_York',
+    };
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    orderNotifications: true,
-    lowStockAlerts: true,
-    customerSignups: false,
-    weeklyReports: true,
-    emailDigest: 'daily',
+  const [notificationSettings, setNotificationSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sosina-admin-notification-settings');
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* use defaults */ }
+      }
+    }
+    return {
+      orderNotifications: true,
+      lowStockAlerts: true,
+      customerSignups: false,
+      weeklyReports: true,
+      emailDigest: 'daily',
+    };
   });
 
   const handleSaveSettings = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Persist to localStorage (API endpoint can be added later)
+      localStorage.setItem('sosina-admin-store-settings', JSON.stringify(storeSettings));
+      localStorage.setItem('sosina-admin-notification-settings', JSON.stringify(notificationSettings));
+      await new Promise(resolve => setTimeout(resolve, 300));
       success('Settings saved successfully', 'Settings Updated');
     } catch (err) {
       error('Failed to save settings', 'Error');
