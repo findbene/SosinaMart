@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Mail, Phone, Globe } from "lucide-react";
+import { MapPin, Mail, Phone, Globe, Clock } from "lucide-react";
 import { STORE_INFO } from "@/lib/data";
 import { formatPhoneForLink } from "@/lib/utils";
 
@@ -49,81 +49,130 @@ const SocialIcon = ({ platform }: { platform: string }) => {
 export default function Footer() {
   return (
     <footer className="bg-primary text-white">
+      {/* Ethiopian flag strip at top */}
+      <div className="h-1.5 bg-gradient-to-r from-green-500 via-yellow-400 to-red-500" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-full overflow-hidden">
-              <Image
-                src="/images/logo.jpeg"
-                alt="Sosina Mart"
-                fill
-                className="object-cover"
-              />
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-accent-gold/30">
+                <Image
+                  src="/images/logo.jpeg"
+                  alt="Sosina Mart"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">{STORE_INFO.name}</h3>
+                <p className="text-white/60 text-xs">Authentic Ethiopian Store</p>
+              </div>
             </div>
-            <h3 className="text-xl font-bold">{STORE_INFO.name}</h3>
+            <p className="text-white/70 text-sm leading-relaxed">
+              Bringing the authentic taste and culture of Ethiopia to the Atlanta community. Quality products sourced directly from Ethiopia.
+            </p>
           </div>
 
           {/* Contact Info */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <MapPin className="w-5 h-5 flex-shrink-0 text-accent-gold" />
-              <span className="text-sm">{STORE_INFO.address}</span>
+          <div>
+            <h4 className="font-semibold text-accent-gold mb-4 uppercase text-sm tracking-wider">Contact</h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <MapPin className="w-4 h-4 flex-shrink-0 text-accent-gold mt-0.5" />
+                <span className="text-sm text-white/80">{STORE_INFO.address}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="w-4 h-4 flex-shrink-0 text-accent-gold" />
+                <Link
+                  href={`mailto:${STORE_INFO.email}`}
+                  className="text-sm text-white/80 hover:text-accent-gold transition-colors"
+                >
+                  {STORE_INFO.email}
+                </Link>
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="w-4 h-4 flex-shrink-0 text-accent-gold" />
+                <Link
+                  href={formatPhoneForLink(STORE_INFO.phone)}
+                  className="text-sm text-white/80 hover:text-accent-gold transition-colors"
+                >
+                  {STORE_INFO.phone}
+                </Link>
+              </div>
+              <div className="flex items-center gap-3">
+                <Globe className="w-4 h-4 flex-shrink-0 text-accent-gold" />
+                <Link
+                  href={`https://${STORE_INFO.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-white/80 hover:text-accent-gold transition-colors"
+                >
+                  {STORE_INFO.website}
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 flex-shrink-0 text-accent-gold" />
-              <Link
-                href={`mailto:${STORE_INFO.email}`}
-                className="text-sm hover:text-accent-gold transition-colors"
-              >
-                {STORE_INFO.email}
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Phone className="w-5 h-5 flex-shrink-0 text-accent-gold" />
-              <Link
-                href={formatPhoneForLink(STORE_INFO.phone)}
-                className="text-sm hover:text-accent-gold transition-colors"
-              >
-                {STORE_INFO.phone}
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Globe className="w-5 h-5 flex-shrink-0 text-accent-gold" />
-              <Link
-                href={`https://${STORE_INFO.website}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm hover:text-accent-gold transition-colors"
-              >
-                {STORE_INFO.website}
-              </Link>
+          </div>
+
+          {/* Store Hours */}
+          <div>
+            <h4 className="font-semibold text-accent-gold mb-4 uppercase text-sm tracking-wider">Store Hours</h4>
+            <div className="space-y-2 text-sm text-white/80">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-accent-gold flex-shrink-0" />
+                <span className="font-medium text-white">Hours</span>
+              </div>
+              <div className="ml-6 space-y-1">
+                <div className="flex justify-between">
+                  <span>Mon - Sat</span>
+                  <span className="text-white">9:00 AM - 8:00 PM</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sunday</span>
+                  <span className="text-white">10:00 AM - 6:00 PM</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-xs text-white/50">
+                  Free local delivery for orders $50+ within 15 miles
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Social Links */}
-          <div className="flex flex-wrap gap-3 md:justify-end">
-            {STORE_INFO.socialLinks.map((social) => (
-              <Link
-                key={social.platform}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent-gold hover:text-primary-dark transition-all"
-                aria-label={social.platform}
-              >
-                <SocialIcon platform={social.platform} />
-              </Link>
-            ))}
+          <div>
+            <h4 className="font-semibold text-accent-gold mb-4 uppercase text-sm tracking-wider">Follow Us</h4>
+            <div className="flex flex-wrap gap-3">
+              {STORE_INFO.socialLinks.map((social) => (
+                <Link
+                  key={social.platform}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent-gold hover:text-primary-dark transition-all duration-300 hover:scale-110"
+                  aria-label={social.platform}
+                >
+                  <SocialIcon platform={social.platform} />
+                </Link>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-white/50 leading-relaxed">
+              Follow us on social media for recipes, cultural stories, new arrivals, and community events.
+            </p>
           </div>
         </div>
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm opacity-80">
+      <div className="border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-sm text-white/60">
             &copy; {new Date().getFullYear()} {STORE_INFO.name}. All rights reserved.
+          </p>
+          <p className="text-xs text-white/40">
+            Tucker, Georgia &mdash; Serving the Ethiopian community in Atlanta
           </p>
         </div>
       </div>

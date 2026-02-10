@@ -6,6 +6,10 @@ import Footer from "@/components/layout/Footer";
 import Hero from "@/components/sections/Hero";
 import Carousel from "@/components/sections/Carousel";
 import ProductSection from "@/components/sections/ProductSection";
+import PromoBar from "@/components/sections/PromoBar";
+import FeaturesSection from "@/components/sections/FeaturesSection";
+import PromoBanner from "@/components/sections/PromoBanner";
+import BackToTop from "@/components/sections/BackToTop";
 import AllProductsModal from "@/components/products/AllProductsModal";
 import { useLanguage } from "@/context/LanguageContext";
 import { PRODUCTS, SECTION_TITLES, getProductsByCategory } from "@/lib/data";
@@ -22,11 +26,17 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Promotional Announcement Bar */}
+      <PromoBar />
+
       <Navbar />
 
       <main className="flex-1">
         {/* Hero Section */}
         <Hero />
+
+        {/* Promotional Banner - Featured Collections */}
+        <PromoBanner onShopNow={handleViewMore} />
 
         {/* Carousel Section */}
         <Carousel />
@@ -61,9 +71,15 @@ export default function Home() {
             onViewMore={handleViewMore}
           />
         </div>
+
+        {/* Why Sosina Mart - Features Section */}
+        <FeaturesSection />
       </main>
 
       <Footer />
+
+      {/* Back to Top Button */}
+      <BackToTop />
 
       {/* All Products Modal */}
       <AllProductsModal
