@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { db } from "@/lib/supabase";
 import { cn, formatPrice, generateOrderNumber, isValidEmail, isValidPhone } from "@/lib/utils";
 
 interface CheckoutModalProps {
@@ -64,24 +63,46 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
     setIsSubmitting(true);
 
     try {
-      const newOrderNumber = generateOrderNumber();
-
-      // Save to Supabase (or local if not configured)
-      await db.createOrder({
-        customer_name: formData.name,
-        customer_email: formData.email,
-        customer_phone: formData.phone,
-        customer_address: formData.address,
-        items: JSON.stringify(items),
-        total: cartTotal,
-        notes: formData.notes,
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            description: item.description,
+            image: item.image,
+          })),
+          customerInfo: {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            notes: formData.notes,
+          },
+        }),
       });
 
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Checkout failed");
+      }
+
+      // If Stripe session URL returned, redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      // Fallback mode (no Stripe configured) — show success in-app
+      const newOrderNumber = generateOrderNumber();
       setOrderNumber(newOrderNumber);
       setIsSuccess(true);
       clearCart();
 
-      // Reset form
       setFormData({
         name: "",
         email: "",
@@ -252,8 +273,9 @@ export default function CheckoutModal({ isOpen, onClose, onSuccess }: CheckoutMo
                   </div>
                 ))}
               </div>
-              <div className="border-t mt-3 pt-3 font-bold">
+              <div className="border-t mt-3 pt-3 font-bold flex justify-between">
                 <span>{items.length} {t.checkout.itemsInOrder}</span>
+                <span>{formatPrice(cartTotal)}</span>
               </div>
             </div>
 

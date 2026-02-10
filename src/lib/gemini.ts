@@ -211,7 +211,7 @@ export class GeminiService {
         systemInstruction: { parts: [{ text: systemText }] },
         tools: tools as any,
         speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } },
           ...(bcp47Map[language] ? { languageCode: bcp47Map[language] } : {}),
         },
       },
