@@ -36,5 +36,5 @@ export interface KnowledgeItem {
   id: string;
   title: string;
   content: string;
-  category: 'store_info' | 'shipping' | 'products' | 'returns';
+  category: 'store_info' | 'shipping' | 'products' | 'returns' | 'culture';
 }

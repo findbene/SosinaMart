@@ -10,7 +10,22 @@ import { useLanguage } from '@/context/LanguageContext';
 import { PRODUCTS } from '@/lib/data';
 import { LANGUAGE_LABELS } from '@/lib/constants';
 
-const KIDIST_AVATAR = "/images/kidist.png";
+const SOSINA_AVATAR = "/images/sosina.png";
+
+// Time-based greeting
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+// Rotating conversation starters
+const CONVERSATION_STARTERS = [
+  "Selam! Welcome to Sosina Mart! I'm Sosina, your personal shopping guide. I'd love to help you discover authentic Ethiopian flavors, beautiful handcrafted items, and everything you need for a true Ethiopian experience. What are you in the mood for today?",
+  "Selam! I'm Sosina, welcome to our store! Whether you're looking for aromatic Ethiopian coffee, traditional spices for your kitchen, or beautiful cultural artifacts, I'm here to help you find exactly what you need. What catches your eye?",
+  "Selam! Welcome! I'm Sosina from Sosina Mart. Did you know Ethiopian coffee is the birthplace of all coffee? We have authentic Yirgacheffe and Harar beans. Or maybe you'd like to explore our spices and traditional kitchenware? I'd love to help!",
+];
 
 const ChatWidget: React.FC = () => {
   const { addToCart } = useCart();
@@ -21,7 +36,7 @@ const ChatWidget: React.FC = () => {
       {
         id: '1',
         role: 'assistant',
-        content: 'Hi! Welcome, my name is Kidist. How can I help you today? I can help you browse through our items, help you pick up items you liked and wanted, load them into your cart, and finally help you pay for them. I can also help you with the pickup information or delivery information!',
+        content: CONVERSATION_STARTERS[Math.floor(Math.random() * CONVERSATION_STARTERS.length)],
         timestamp: new Date()
       }
     ],
@@ -324,12 +339,12 @@ const ChatWidget: React.FC = () => {
               className="bg-white px-10 py-5 rounded-[2.5rem] border-2 border-amber-500 text-amber-900 text-[14px] font-black hidden md:block uppercase tracking-tight shadow-2xl mb-4 relative z-10"
               style={{ boxShadow: '0 -4px 15px rgba(0, 154, 68, 0.2), 0 0 25px rgba(254, 209, 0, 0.2), 0 4px 35px rgba(239, 51, 64, 0.2)' }}
             >
-              {t.chat.askKidist}
+              {t.chat.askSosina}
             </div>
             <div className="absolute bottom-[8px] right-10 w-8 h-8 bg-white border-r-2 border-b-2 border-amber-500 rotate-45 hidden md:block z-0"></div>
           </div>
 
-          {/* Kidist Avatar Button */}
+          {/* Sosina Avatar Button */}
           <button
             data-testid="chat-widget-button"
             onClick={() => setIsOpen(true)}
@@ -342,10 +357,10 @@ const ChatWidget: React.FC = () => {
 
             {/* White border */}
             <div className="absolute inset-[3px] sm:inset-[4px] lg:inset-[5px] rounded-full bg-white p-[2px] sm:p-[3px] shadow-2xl">
-              {/* Kidist's photo */}
+              {/* Sosina's photo */}
               <img
-                src="/images/kidist.png"
-                alt="Kidist - Shopping Assistant"
+                src="/images/sosina.png"
+                alt="Sosina - Shopping Assistant"
                 className="w-full h-full rounded-full object-cover"
               />
             </div>
@@ -363,12 +378,12 @@ const ChatWidget: React.FC = () => {
               <div className="relative w-12 h-12 sm:w-20 sm:h-20 flex-shrink-0">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-500 via-yellow-400 to-red-500 p-[2px] sm:p-[3px]">
                   <div className="w-full h-full rounded-full bg-white p-[1px] sm:p-[2px]">
-                    <img src={KIDIST_AVATAR} className="w-full h-full rounded-full object-cover" alt="Kidist" />
+                    <img src={SOSINA_AVATAR} className="w-full h-full rounded-full object-cover" alt="Sosina" />
                   </div>
                 </div>
               </div>
               <div>
-                <h3 className="font-black text-lg sm:text-2xl uppercase italic">Kidist</h3>
+                <h3 className="font-black text-lg sm:text-2xl uppercase italic">Sosina</h3>
                 <span className="text-[9px] sm:text-[10px] bg-black/30 px-2 py-0.5 rounded uppercase font-bold tracking-widest">{t.chat.supportConcierge}</span>
               </div>
             </div>
@@ -391,7 +406,7 @@ const ChatWidget: React.FC = () => {
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-6 bg-gray-50/50">
             {state.messages.map(m => (
-              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
                 <div className={`max-w-[90%] sm:max-w-[85%] p-3 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm text-sm ${m.role === 'user' ? 'bg-amber-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-amber-100'}`}>
                   {m.content}
                 </div>
@@ -400,10 +415,10 @@ const ChatWidget: React.FC = () => {
             {state.isProcessing && (
               <div className="flex justify-start">
                 <div className="bg-white p-4 rounded-[2rem] border border-amber-100 shadow-sm">
-                  <div className="animate-pulse flex gap-2">
-                    <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
-                    <div className="w-2 h-2 bg-amber-400 rounded-full animation-delay-150"></div>
-                    <div className="w-2 h-2 bg-amber-400 rounded-full animation-delay-300"></div>
+                  <div className="flex gap-2">
+                    <div className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2.5 h-2.5 bg-amber-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
                 </div>
               </div>
@@ -418,8 +433,8 @@ const ChatWidget: React.FC = () => {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend(input)}
-                className="flex-1 bg-gray-50 border-2 rounded-[1.5rem] px-4 sm:px-6 py-3 sm:py-4 focus:border-amber-600 outline-none text-gray-800 text-sm sm:text-base"
-                placeholder={t.chat.talkToKidist}
+                className="flex-1 bg-gray-50 border-2 rounded-[1.5rem] px-4 sm:px-6 py-3 sm:py-4 focus:border-amber-600 outline-none text-gray-800 text-sm sm:text-base transition-colors"
+                placeholder={t.chat.talkToSosina}
               />
               <button
                 data-testid="chat-send"
